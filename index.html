@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlas — relevé de projets d'architecture</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B1E33;
+    --ink-2:#12283F;
+    --grid:#1E3A57;
+    --blueprint:#6FD3E0;
+    --blueprint-dim:#3E7285;
+    --text-dim:#8FB3C4;
+    --paper:#F3EEE2;
+    --paper-dim:#D9D0BC;
+    --copper:#C97A3D;
+    --copper-bright:#E39A5C;
+    --danger:#D9694F;
+    --text-on-paper:#1B1712;
+    --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --ease-out: cubic-bezier(0, 0, 0.58, 1);
+    --duration-fast: 150ms;
+    --duration-medium: 250ms;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--ink);
+    color:var(--paper);
+    overflow:hidden;
+  }
+  /* focus visibility — every interactive element gets a clear ring */
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible,
+  select:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--blueprint);
+    outline-offset:2px;
+    border-radius:2px;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition-duration:0.001ms !important; animation-duration:0.001ms !important;}
+  }
+  #map{
+    position:absolute; inset:0;
+    background:var(--ink);
+  }
+  /* subtle blueprint grid overlay */
+  #grid-overlay{
+    position:absolute; inset:0; pointer-events:none; z-index:399;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:80px 80px;
+    opacity:0.12;
+    mix-blend-mode:screen;
+  }
+
+  /* Top bar */
+  #topbar{
+    position:absolute; top:16px; left:16px; right:16px; z-index:1000;
+    display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start;
+    pointer-events:none;
+    padding-top:env(safe-area-inset-top, 0px);
+  }
+  .panel{
+    background:rgba(11,30,51,0.92);
+    border:1px solid var(--grid);
+    border-radius:2px;
+    backdrop-filter:blur(6px);
+    pointer-events:auto;
+  }
+  #brand{
+    padding:10px 16px;
+    display:flex; flex-direction:column; gap:2px;
+    border-left:3px solid var(--copper);
+  }
+  #brand .title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:600; font-size:16px; letter-spacing:0.02em;
+    color:var(--paper);
+  }
+  #brand .subtitle{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10px; color:var(--blueprint); letter-spacing:0.08em; text-transform:uppercase;
+  }
+  #searchwrap{
+    flex:1; min-width:220px; max-width:480px;
+    display:flex; align-items:center; gap:8px;
+    padding:0 14px;
+  }
+  #searchwrap svg{flex-shrink:0; opacity:0.6;}
+  #search{
+    flex:1; background:transparent; border:none; outline:none;
+    color:var(--paper); font-family:'IBM Plex Sans'; font-size:14px;
+    padding:12px 0;
+  }
+  #search::placeholder{color:var(--text-dim);}
+  #searchCount{
+    font-family:'IBM Plex Mono'; font-size:11px; color:var(--text-dim);
+    white-space:nowrap;
+  }
+
+  #addBtn{
+    min-height:44px;
+    padding:0 18px;
+    background:var(--copper);
+    color:var(--ink);
+    border:none; border-radius:2px;
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    pointer-events:auto;
+    display:flex; align-items:center; gap:8px;
+    transition:background var(--duration-fast) var(--ease-standard);
+  }
+  #addBtn:hover{background:var(--copper-bright);}
+  #addBtn.active{background:var(--danger); color:var(--paper);}
+  #wdBtn{
+    min-height:44px;
+    padding:0 18px;
+    background:var(--ink-2);
+    color:var(--blueprint);
+    border:1px solid var(--blueprint-dim);
+    border-radius:2px;
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    pointer-events:auto;
+    display:flex; align-items:center; gap:8px;
+    transition:background var(--duration-fast) var(--ease-standard);
+  }
+  #wdBtn:hover{background:var(--grid);}
+  .btn-icon{font-size:15px; line-height:1;}
+
+  /* Compact topbar: stack search on its own row, buttons become icon-only 44x44 */
+  @media (max-width: 700px){
+    #brand .subtitle{display:none;}
+    #brand{padding:8px 12px;}
+    #searchwrap{order:3; flex-basis:100%; max-width:none; min-width:0;}
+    #wdBtn, #addBtn{
+      width:44px; padding:0; justify-content:center; gap:0;
+    }
+    .btn-label{
+      position:absolute; width:1px; height:1px; overflow:hidden;
+      clip:rect(0,0,0,0); white-space:nowrap;
+    }
+  }
+
+  /* Search results dropdown */
+  #searchResults{
+    position:absolute; top:72px; left:16px; width:420px; max-height:60vh;
+    overflow-y:auto; z-index:1000; display:none;
+  }
+  #searchResults.show{display:block;}
+  .result-item{
+    display:flex; gap:10px; padding:10px 14px; cursor:pointer;
+    border-bottom:1px solid var(--grid);
+    align-items:center;
+  }
+  .result-item:last-child{border-bottom:none;}
+  .result-item:hover{background:rgba(111,211,224,0.08);}
+  .result-thumb{
+    width:44px; height:44px; border-radius:2px; object-fit:cover;
+    background:var(--grid); flex-shrink:0;
+    border:1px solid var(--blueprint-dim);
+  }
+  .result-text .rt-title{font-size:13px; font-weight:500; color:var(--paper);}
+  .result-text .rt-meta{font-family:'IBM Plex Mono'; font-size:10px; color:var(--text-dim); margin-top:2px;}
+
+  /* Hover card for pins */
+  .archive-card{
+    background:var(--paper) !important;
+    color:var(--text-on-paper);
+    border-radius:2px !important;
+    border:1px solid var(--paper-dim) !important;
+    box-shadow:2px 3px 0 rgba(0,0,0,0.35) !important;
+    padding:0 !important;
+    width:220px;
+  }
+  .archive-card .leaflet-popup-content-wrapper{
+    background:transparent; box-shadow:none; padding:0; border-radius:0;
+  }
+  .archive-card .leaflet-popup-content{margin:0; width:220px !important;}
+  .archive-card .leaflet-popup-tip{background:var(--paper);}
+  .ac-img{
+    width:100%; height:120px; object-fit:cover; display:block;
+    border-bottom:2px solid var(--copper);
+    background:var(--paper-dim);
+  }
+  .ac-body{padding:10px 12px;}
+  .ac-title{font-family:'Space Grotesk'; font-weight:600; font-size:13px; line-height:1.25; margin-bottom:3px;}
+  .ac-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#6b5f4a; letter-spacing:0.02em;}
+  .ac-link{
+    display:inline-block; margin-top:6px; font-size:11px; color:var(--copper);
+    text-decoration:none; font-weight:600; border-bottom:1px solid var(--copper);
+  }
+
+  /* Custom pin marker */
+  .pin-icon{
+    width:26px; height:34px;
+    display:flex; align-items:center; justify-content:center;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5));
+    cursor:grab;
+  }
+  .pin-icon.editing{cursor:grabbing;}
+
+  /* Modal */
+  #modalOverlay{
+    position:fixed; inset:0; background:rgba(11,20,33,0.75);
+    z-index:2000; display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+  }
+  #modalOverlay.show{display:flex;}
+  #modal{
+    width:420px; max-width:92vw; max-height:88vh; overflow-y:auto;
+    background:var(--paper); color:var(--text-on-paper);
+    border-radius:2px; box-shadow:4px 6px 0 rgba(0,0,0,0.4);
+  }
+  #modal .m-head{
+    padding:16px 20px; border-bottom:2px solid var(--copper);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #modal .m-head h2{
+    font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;
+  }
+  #modal .m-head .m-eyebrow{
+    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#8a7c62; margin-bottom:3px;
+  }
+  .m-close{
+    width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+    background:none; border:none; font-size:22px; cursor:pointer; color:#8a7c62; line-height:1;
+    margin:-10px -12px -10px 0;
+  }
+  #modal .m-body{padding:18px 20px;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block; font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.06em; color:#8a7c62; margin-bottom:5px;
+  }
+  .field input, .field textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:2px;
+    font-family:'IBM Plex Sans'; font-size:13px; background:#fff; color:var(--text-on-paper);
+    outline:none;
+  }
+  .field input:focus, .field textarea:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(201,122,61,0.18);}
+  .field textarea{resize:vertical; min-height:50px;}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .geocode-btn{
+    margin-top:6px; min-height:44px; padding:0 14px; font-size:12px; font-family:'IBM Plex Mono';
+    background:var(--ink); color:var(--blueprint); border:none; border-radius:2px; cursor:pointer;
+  }
+  .geocode-status{font-size:11px; color:#8a7c62; margin-top:5px; font-family:'IBM Plex Mono';}
+  .m-actions{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--paper-dim);
+  }
+  .btn-primary{
+    background:var(--copper); color:var(--ink); border:none; padding:10px 20px;
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; border-radius:2px; cursor:pointer;
+  }
+  .btn-primary:hover{background:var(--copper-bright);}
+  .btn-primary:disabled{opacity:0.4; cursor:default; background:var(--paper-dim); color:#8a7c62;}
+  .btn-danger{
+    background:none; color:var(--danger); border:none; font-size:12px; cursor:pointer;
+    font-family:'IBM Plex Mono'; text-decoration:underline;
+  }
+  .hint{
+    font-size:11px; color:#8a7c62; line-height:1.5; margin-top:-6px; margin-bottom:14px;
+  }
+
+  /* Empty state toast */
+  #toast{
+    position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--ink-2); border:1px solid var(--copper); color:var(--paper);
+    padding:10px 18px; border-radius:2px; font-size:13px; z-index:2500;
+    display:none; font-family:'IBM Plex Sans';
+  }
+  #toast.show{display:block;}
+
+  #crosshairHint{
+    position:absolute; top:80px; left:50%; transform:translateX(-50%);
+    background:var(--danger); color:var(--paper); padding:8px 16px; border-radius:2px;
+    font-family:'IBM Plex Mono'; font-size:11px; z-index:1000; display:none;
+    letter-spacing:0.03em;
+  }
+  #crosshairHint.show{display:block;}
+
+  .leaflet-control-zoom{border:1px solid var(--grid) !important;}
+  .leaflet-control-zoom a{
+    background:var(--ink-2) !important; color:var(--blueprint) !important;
+    border-color:var(--grid) !important;
+  }
+  .leaflet-control-attribution{
+    background:rgba(11,30,51,0.8) !important; color:var(--blueprint-dim) !important;
+    font-family:'IBM Plex Mono'; font-size:9px !important;
+  }
+  .leaflet-control-attribution a{color:var(--blueprint) !important;}
+
+  .marker-cluster-custom{
+    background:var(--copper); color:var(--ink);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk'; font-weight:700; font-size:12px;
+    border:2px solid var(--ink);
+  }
+
+  /* Wikidata import panel */
+
+  #wdOverlay{
+    position:fixed; inset:0; background:rgba(11,20,33,0.75);
+    z-index:2000; display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+  }
+  #wdOverlay.show{display:flex;}
+  #wdModal{
+    width:560px; max-width:94vw; max-height:88vh;
+    background:var(--paper); color:var(--text-on-paper);
+    border-radius:2px; box-shadow:4px 6px 0 rgba(0,0,0,0.4);
+    display:flex; flex-direction:column;
+  }
+  #wdModal .m-head{
+    padding:16px 20px; border-bottom:2px solid var(--blueprint-dim);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #wdModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #wdModal .m-head .m-eyebrow{
+    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#8a7c62; margin-bottom:3px;
+  }
+  .wd-tabs{display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--paper-dim);}
+  .wd-tab{
+    padding:10px 4px; margin-right:20px; background:none; border:none; cursor:pointer;
+    font-family:'IBM Plex Mono'; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;
+    color:#8a7c62; border-bottom:2px solid transparent;
+  }
+  .wd-tab.active{color:var(--text-on-paper); border-bottom-color:var(--copper);}
+  #wdModal .wd-body{padding:16px 20px; overflow-y:auto; flex:1;}
+  .wd-row{display:flex; gap:8px; margin-bottom:10px;}
+  .wd-row input, .wd-row select{
+    min-height:44px; padding:0 10px; border:1px solid var(--paper-dim); border-radius:2px;
+    font-family:'IBM Plex Sans'; font-size:13px; background:#fff; color:var(--text-on-paper);
+    outline:none;
+  }
+  .wd-row input:focus, .wd-row select:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(201,122,61,0.18);}
+  .wd-row input{flex:1;}
+  .wd-btn{
+    min-height:44px;
+    background:var(--ink); color:var(--blueprint); border:none; padding:0 14px;
+    font-family:'IBM Plex Mono'; font-size:11px; border-radius:2px; cursor:pointer; white-space:nowrap;
+  }
+  .wd-btn:disabled{opacity:0.4; cursor:default;}
+  .wd-candidates{margin-bottom:10px;}
+  .wd-candidates select{width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:2px; font-family:'IBM Plex Sans'; font-size:13px;}
+  .wd-status{font-family:'IBM Plex Mono'; font-size:11px; color:#8a7c62; margin:6px 0 12px;}
+  .wd-results{border-top:1px solid var(--paper-dim);}
+  .wd-result-item{
+    display:flex; gap:10px; padding:9px 0; align-items:center;
+    border-bottom:1px solid var(--paper-dim);
+  }
+  .wd-result-item input[type=checkbox]{width:16px; height:16px; flex-shrink:0; accent-color:var(--copper);}
+  .wd-result-thumb{
+    width:40px; height:40px; border-radius:2px; object-fit:cover; flex-shrink:0;
+    background:var(--paper-dim); border:1px solid var(--paper-dim);
+  }
+  .wd-result-text .wr-title{font-size:13px; font-weight:500;}
+  .wd-result-text .wr-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#8a7c62; margin-top:2px;}
+  #wdModal .m-actions{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--paper-dim);
+  }
+  #wdSelectedCount{font-family:'IBM Plex Mono'; font-size:11px; color:#8a7c62;}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="grid-overlay"></div>
+
+<div id="topbar">
+  <div id="brand" class="panel">
+    <div class="title">Atlas</div>
+    <div class="subtitle">Relevé de projets — worldarchitecture.org</div>
+  </div>
+  <div id="searchwrap" class="panel">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6FD3E0" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="search" type="text" placeholder="Rechercher un bâtiment, un architecte, une ville…" aria-label="Rechercher un projet" />
+    <span id="searchCount" aria-live="polite"></span>
+  </div>
+  <button id="wdBtn" aria-label="Importer depuis Wikidata" title="Importer depuis Wikidata">
+    <span class="btn-icon" aria-hidden="true">⊕</span><span class="btn-label">Importer depuis Wikidata</span>
+  </button>
+  <button id="addBtn" aria-label="Ajouter un projet" title="Ajouter un projet">
+    <span class="btn-icon" aria-hidden="true">+</span><span class="btn-label">Ajouter un projet</span>
+  </button>
+</div>
+
+<div id="crosshairHint">Cliquez sur la carte pour placer l'épingle — Échap pour annuler</div>
+<div id="searchResults" class="panel"></div>
+<div id="toast"></div>
+
+<div id="modalOverlay">
+  <div id="modal">
+    <div class="m-head">
+      <div>
+        <div class="m-eyebrow" id="modalEyebrow">Nouveau relevé</div>
+        <h2 id="modalTitle">Ajouter un projet</h2>
+      </div>
+      <button class="m-close" id="modalClose" aria-label="Fermer">×</button>
+    </div>
+    <div class="m-body">
+      <div class="field">
+        <label>Nom du bâtiment / projet</label>
+        <input id="f-title" type="text" placeholder="ex. Musée des Confluences" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Architecte(s)</label>
+          <input id="f-architect" type="text" placeholder="ex. Coop Himmelb(l)au" />
+        </div>
+        <div class="field">
+          <label>Ville / pays</label>
+          <input id="f-city" type="text" placeholder="ex. Lyon, France" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Adresse (pour géocodage)</label>
+        <input id="f-address" type="text" placeholder="ex. 86 Quai Perrache, 69002 Lyon" />
+        <button class="geocode-btn" id="geocodeBtn">Localiser cette adresse ↦</button>
+        <div class="geocode-status" id="geocodeStatus"></div>
+      </div>
+      <div class="hint">Ou cliquez directement sur la carte pour placer l'épingle, puis ajustez-la par glisser-déposer.</div>
+      <div class="field">
+        <label>URL de l'image (aperçu au survol)</label>
+        <input id="f-image" type="text" placeholder="https://worldarchitecture.org/…jpg" />
+      </div>
+      <div class="field">
+        <label>Lien vers l'article (worldarchitecture.org)</label>
+        <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
+      </div>
+      <div class="field">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Notes libres…"></textarea>
+      </div>
+    </div>
+    <div class="m-actions">
+      <button class="btn-danger" id="deleteBtn" style="display:none;">Supprimer ce projet</button>
+      <button class="btn-primary" id="saveBtn">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="wdOverlay">
+  <div id="wdModal">
+    <div class="m-head">
+      <div>
+        <div class="m-eyebrow">Wikidata</div>
+        <h2>Importer des bâtiments</h2>
+      </div>
+      <button class="m-close" id="wdClose" aria-label="Fermer">×</button>
+    </div>
+    <div class="wd-tabs">
+      <button class="wd-tab active" data-tab="architect">Par architecte</button>
+      <button class="wd-tab" data-tab="place">Par lieu</button>
+      <button class="wd-tab" data-tab="year">Par année</button>
+    </div>
+    <div class="wd-body">
+      <div id="wd-pane-architect">
+        <div class="wd-row">
+          <input id="wdArchInput" type="text" placeholder="Nom d'un architecte, ex. Jean Nouvel" />
+          <button class="wd-btn" id="wdArchSearchBtn">Rechercher</button>
+        </div>
+        <div class="wd-candidates" id="wdArchCandidatesWrap" style="display:none;">
+          <select id="wdArchSelect"></select>
+        </div>
+        <div class="wd-status" id="wdArchStatus"></div>
+      </div>
+      <div id="wd-pane-place" style="display:none;">
+        <div class="wd-row">
+          <input id="wdPlaceInput" type="text" placeholder="Ville ou lieu, ex. Nice, France" />
+          <select id="wdRadius">
+            <option value="5">5 km</option>
+            <option value="15" selected>15 km</option>
+            <option value="30">30 km</option>
+            <option value="60">60 km</option>
+          </select>
+          <button class="wd-btn" id="wdPlaceSearchBtn">Rechercher</button>
+        </div>
+        <div class="wd-status" id="wdPlaceStatus"></div>
+      </div>
+      <div id="wd-pane-year" style="display:none;">
+        <div class="wd-row">
+          <input id="wdYearInput" type="text" placeholder="Année, ex. 2026" value="2026" style="max-width:120px; flex:none;" />
+          <button class="wd-btn" id="wdYearSearchBtn">Rechercher</button>
+        </div>
+        <div class="wd-status" id="wdYearStatus">Cherche les structures architecturales dont la date d'achèvement ou d'ouverture officielle correspond à cette année, toutes localisations confondues. Peut prendre quelques secondes.</div>
+      </div>
+      <div class="wd-results" id="wdResultsList"></div>
+    </div>
+    <div class="m-actions">
+      <span id="wdSelectedCount">0 sélectionné(s)</span>
+      <button class="btn-primary" id="wdImportBtn" disabled>Importer la sélection</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script>
+(function(){
+  const STORAGE_KEY = 'wa-atlas-projects';
+  let projects = [];      // {id, title, architect, city, address, lat, lng, image, source, notes}
+  let markers = {};       // id -> leaflet marker
+  let map, clusterGroup;
+  let placingNew = false;
+  let pendingLatLng = null;
+  let editingId = null;
+
+  function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
+
+  function pinDivIcon(){
+    return L.divIcon({
+      className:'',
+      html:`<div class="pin-icon"><svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" fill="#C97A3D" stroke="#0B1E33" stroke-width="1.5"/>
+        <circle cx="13" cy="13" r="5" fill="#0B1E33"/>
+      </div>`,
+      iconSize:[26,34],
+      iconAnchor:[13,34],
+      popupAnchor:[0,-30]
+    });
+  }
+
+  async function initStorage(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      projects = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      projects = [];
+    }
+  }
+
+  async function persist(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    }catch(e){
+      showToast("Échec de l'enregistrement local.");
+    }
+  }
+
+  function showToast(msg, ms=2400){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(()=>t.classList.remove('show'), ms);
+  }
+
+  function popupHtml(p){
+    const img = p.image ? `<img class="ac-img" src="${escapeHtml(p.image)}" onerror="this.style.display='none'"/>` : '';
+    const meta = [p.architect, p.city].filter(Boolean).join(' · ');
+    const link = p.source ? `<a class="ac-link" href="${escapeHtml(p.source)}" target="_blank" rel="noopener">Voir l'article ↗</a>` : '';
+    return `<div>${img}<div class="ac-body">
+      <div class="ac-title">${escapeHtml(p.title||'Sans titre')}</div>
+      ${meta ? `<div class="ac-meta">${escapeHtml(meta)}</div>` : ''}
+      ${link}
+    </div></div>`;
+  }
+
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function addMarkerToMap(p){
+    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(), draggable:true});
+    m.bindPopup(popupHtml(p), {className:'archive-card', closeButton:true});
+    m.on('mouseover', ()=> m.openPopup());
+    m.on('click', ()=> openEditModal(p.id));
+    m.on('dragend', (e)=>{
+      const ll = e.target.getLatLng();
+      const proj = projects.find(x=>x.id===p.id);
+      if(proj){ proj.lat = ll.lat; proj.lng = ll.lng; persist(); }
+    });
+    markers[p.id] = m;
+    clusterGroup.addLayer(m);
+  }
+
+  function rebuildMarkers(){
+    clusterGroup.clearLayers();
+    markers = {};
+    projects.forEach(addMarkerToMap);
+  }
+
+  function initMap(){
+    map = L.map('map', {zoomControl:true, worldCopyJump:true}).setView([46.6, 2.4], 5);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors',
+      maxZoom: 19, maxNativeZoom: 16
+    }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, maxNativeZoom: 16
+    }).addTo(map);
+
+    clusterGroup = L.markerClusterGroup({
+      iconCreateFunction: function(cluster){
+        return L.divIcon({
+          html: `<div class="marker-cluster-custom" style="width:${34+Math.min(cluster.getChildCount(),20)}px;height:${34+Math.min(cluster.getChildCount(),20)}px;">${cluster.getChildCount()}</div>`,
+          className:'', iconSize:[40,40]
+        });
+      },
+      maxClusterRadius:50
+    });
+    map.addLayer(clusterGroup);
+
+    map.on('click', (e)=>{
+      if(placingNew){
+        pendingLatLng = e.latlng;
+        exitPlacingMode();
+        openCreateModal(e.latlng);
+      }
+    });
+
+    document.addEventListener('keydown', (e)=>{
+      if(e.key !== 'Escape') return;
+      if(placingNew) exitPlacingMode();
+      else if(modalOverlay.classList.contains('show')) closeModal();
+      else if(wdOverlay.classList.contains('show')) wdOverlay.classList.remove('show');
+    });
+  }
+
+  function enterPlacingMode(){
+    placingNew = true;
+    document.getElementById('crosshairHint').classList.add('show');
+    const btn = document.getElementById('addBtn');
+    btn.classList.add('active');
+    btn.querySelector('.btn-icon').textContent = '×';
+    btn.querySelector('.btn-label').textContent = 'Annuler';
+    btn.setAttribute('aria-label', "Annuler l'ajout d'un projet");
+    map.getContainer().style.cursor = 'crosshair';
+  }
+  function exitPlacingMode(){
+    placingNew = false;
+    document.getElementById('crosshairHint').classList.remove('show');
+    const btn = document.getElementById('addBtn');
+    btn.classList.remove('active');
+    btn.querySelector('.btn-icon').textContent = '+';
+    btn.querySelector('.btn-label').textContent = 'Ajouter un projet';
+    btn.setAttribute('aria-label', 'Ajouter un projet');
+    map.getContainer().style.cursor = '';
+  }
+
+  // ---- Modal ----
+  const modalOverlay = document.getElementById('modalOverlay');
+  const fTitle = document.getElementById('f-title');
+  const fArchitect = document.getElementById('f-architect');
+  const fCity = document.getElementById('f-city');
+  const fAddress = document.getElementById('f-address');
+  const fImage = document.getElementById('f-image');
+  const fSource = document.getElementById('f-source');
+  const fNotes = document.getElementById('f-notes');
+  const geocodeStatus = document.getElementById('geocodeStatus');
+
+  function clearForm(){
+    fTitle.value=''; fArchitect.value=''; fCity.value=''; fAddress.value='';
+    fImage.value=''; fSource.value=''; fNotes.value='';
+    geocodeStatus.textContent='';
+  }
+
+  function openCreateModal(latlng){
+    editingId = null;
+    clearForm();
+    document.getElementById('modalEyebrow').textContent = 'Nouveau relevé';
+    document.getElementById('modalTitle').textContent = 'Ajouter un projet';
+    document.getElementById('deleteBtn').style.display = 'none';
+    pendingLatLng = latlng || null;
+    modalOverlay.classList.add('show');
+    fTitle.focus();
+  }
+
+  function openEditModal(id){
+    const p = projects.find(x=>x.id===id);
+    if(!p) return;
+    editingId = id;
+    fTitle.value = p.title||''; fArchitect.value = p.architect||''; fCity.value = p.city||'';
+    fAddress.value = p.address||''; fImage.value = p.image||''; fSource.value = p.source||'';
+    fNotes.value = p.notes||'';
+    geocodeStatus.textContent='';
+    document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
+    document.getElementById('modalTitle').textContent = p.title || 'Projet';
+    document.getElementById('deleteBtn').style.display = 'inline';
+    modalOverlay.classList.add('show');
+  }
+
+  function closeModal(){
+    modalOverlay.classList.remove('show');
+    pendingLatLng = null; editingId = null;
+  }
+
+  document.getElementById('modalClose').onclick = closeModal;
+  modalOverlay.addEventListener('click', (e)=>{ if(e.target===modalOverlay) closeModal(); });
+
+  document.getElementById('geocodeBtn').onclick = async ()=>{
+    const q = fAddress.value.trim();
+    if(!q){ geocodeStatus.textContent = 'Saisissez une adresse d\'abord.'; return; }
+    geocodeStatus.textContent = 'Recherche…';
+    try{
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+      const res = await fetch(url, {headers:{'Accept':'application/json'}});
+      const data = await res.json();
+      if(data && data.length){
+        pendingLatLng = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
+        geocodeStatus.textContent = `Trouvé — ${data[0].lat}, ${data[0].lon}. L'épingle sera placée ici à l'enregistrement.`;
+      }else{
+        geocodeStatus.textContent = "Adresse introuvable. Vous pourrez placer l'épingle manuellement sur la carte.";
+      }
+    }catch(e){
+      geocodeStatus.textContent = "Échec du géocodage (réseau). Placez l'épingle manuellement.";
+    }
+  };
+
+  document.getElementById('saveBtn').onclick = async ()=>{
+    const title = fTitle.value.trim();
+    if(!title){ showToast('Le nom du projet est requis.'); fTitle.focus(); return; }
+
+    if(editingId){
+      const p = projects.find(x=>x.id===editingId);
+      p.title=title; p.architect=fArchitect.value.trim(); p.city=fCity.value.trim();
+      p.address=fAddress.value.trim(); p.image=fImage.value.trim(); p.source=fSource.value.trim();
+      p.notes=fNotes.value.trim();
+      if(pendingLatLng){ p.lat=pendingLatLng.lat; p.lng=pendingLatLng.lng; }
+      await persist();
+      rebuildMarkers();
+      showToast('Projet mis à jour.');
+    }else{
+      if(!pendingLatLng){
+        showToast('Cliquez sur la carte ou géocodez une adresse pour placer l\'épingle.');
+        return;
+      }
+      const p = {
+        id: uid(), title, architect: fArchitect.value.trim(), city: fCity.value.trim(),
+        address: fAddress.value.trim(), lat: pendingLatLng.lat, lng: pendingLatLng.lng,
+        image: fImage.value.trim(), source: fSource.value.trim(), notes: fNotes.value.trim()
+      };
+      projects.push(p);
+      await persist();
+      addMarkerToMap(p);
+      map.setView([p.lat, p.lng], Math.max(map.getZoom(), 12));
+      showToast('Projet ajouté.');
+    }
+    closeModal();
+  };
+
+  document.getElementById('deleteBtn').onclick = async ()=>{
+    if(!editingId) return;
+    if(!confirm('Supprimer ce projet ?')) return;
+    projects = projects.filter(x=>x.id!==editingId);
+    await persist();
+    rebuildMarkers();
+    closeModal();
+    showToast('Projet supprimé.');
+  };
+
+  document.getElementById('addBtn').onclick = ()=>{
+    if(placingNew){ exitPlacingMode(); return; }
+    enterPlacingMode();
+  };
+
+  // ---- Search ----
+  const searchInput = document.getElementById('search');
+  const searchResults = document.getElementById('searchResults');
+  const searchCount = document.getElementById('searchCount');
+
+  function runSearch(q){
+    q = q.trim().toLowerCase();
+    if(!q){ searchResults.classList.remove('show'); searchCount.textContent=''; return; }
+    const hits = projects.filter(p=>{
+      const hay = [p.title,p.architect,p.city,p.address,p.notes].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    searchCount.textContent = hits.length ? `${hits.length} résultat(s)` : 'aucun résultat';
+    if(!hits.length){
+      searchResults.innerHTML = `<div class="result-item" style="cursor:default;">
+        <div class="result-text"><div class="rt-title">Aucun projet ne correspond.</div>
+        <div class="rt-meta">Ajoutez-le avec le bouton "+ Ajouter un projet".</div></div>
+      </div>`;
+      searchResults.classList.add('show');
+      return;
+    }
+    searchResults.innerHTML = hits.map(p=>`
+      <div class="result-item" data-id="${p.id}" tabindex="0" role="button" aria-label="${escapeHtml(p.title||'Sans titre')}">
+        <img class="result-thumb" src="${escapeHtml(p.image||'')}" onerror="this.style.opacity=0" alt="" />
+        <div class="result-text">
+          <div class="rt-title">${escapeHtml(p.title||'Sans titre')}</div>
+          <div class="rt-meta">${escapeHtml([p.architect,p.city].filter(Boolean).join(' · '))}</div>
+        </div>
+      </div>`).join('');
+    searchResults.classList.add('show');
+    searchResults.querySelectorAll('.result-item[data-id]').forEach(el=>{
+      const activate = ()=>{
+        const p = projects.find(x=>x.id===el.dataset.id);
+        if(p){
+          map.setView([p.lat,p.lng], 14);
+          setTimeout(()=> markers[p.id] && markers[p.id].openPopup(), 350);
+        }
+        searchResults.classList.remove('show');
+      };
+      el.onclick = activate;
+      el.onkeydown = (e)=>{
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); activate(); }
+      };
+    });
+  }
+
+  searchInput.addEventListener('input', ()=> runSearch(searchInput.value));
+  document.addEventListener('click', (e)=>{
+    if(!searchResults.contains(e.target) && e.target!==searchInput){
+      searchResults.classList.remove('show');
+    }
+  });
+
+  // ---- Wikidata import ----
+  const wdOverlay = document.getElementById('wdOverlay');
+  const wdResultsList = document.getElementById('wdResultsList');
+  const wdSelectedCount = document.getElementById('wdSelectedCount');
+  const wdImportBtn = document.getElementById('wdImportBtn');
+  let wdResultsData = {};   // qid -> {label, coord:[lat,lng], image, source, architectLabel}
+  let wdSelected = new Set();
+  let wdCurrentArchitectLabel = '';
+
+  document.getElementById('wdBtn').onclick = ()=>{
+    wdOverlay.classList.add('show');
+  };
+  document.getElementById('wdClose').onclick = ()=> wdOverlay.classList.remove('show');
+  wdOverlay.addEventListener('click', (e)=>{ if(e.target===wdOverlay) wdOverlay.classList.remove('show'); });
+
+  document.querySelectorAll('.wd-tab').forEach(tab=>{
+    tab.onclick = ()=>{
+      document.querySelectorAll('.wd-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('wd-pane-architect').style.display = tab.dataset.tab==='architect' ? '' : 'none';
+      document.getElementById('wd-pane-place').style.display = tab.dataset.tab==='place' ? '' : 'none';
+      document.getElementById('wd-pane-year').style.display = tab.dataset.tab==='year' ? '' : 'none';
+      wdResultsList.innerHTML=''; wdSelected = new Set(); updateWdCount();
+    };
+  });
+
+  function parseWktPoint(wkt){
+    const m = /Point\(([-\d.eE]+)\s+([-\d.eE]+)\)/.exec(wkt||'');
+    if(!m) return null;
+    return { lng: parseFloat(m[1]), lat: parseFloat(m[2]) };
+  }
+
+  async function sparqlQuery(query){
+    const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query);
+    const res = await fetch(url, {headers:{'Accept':'application/sparql-results+json'}});
+    if(!res.ok) throw new Error('SPARQL request failed: ' + res.status);
+    const data = await res.json();
+    return data.results.bindings;
+  }
+
+  function renderWdResults(items){
+    wdResultsData = {};
+    wdSelected = new Set();
+    if(!items.length){
+      wdResultsList.innerHTML = `<div class="wd-status">Aucun résultat.</div>`;
+      updateWdCount();
+      return;
+    }
+    const selectAllRow = `<label class="wd-result-item" style="border-bottom:2px solid var(--copper);">
+        <input type="checkbox" id="wdSelectAll" />
+        <div class="wd-result-text"><div class="wr-title">Tout sélectionner (${items.length})</div></div>
+      </label>`;
+    wdResultsList.innerHTML = selectAllRow + items.map(it=>`
+      <label class="wd-result-item">
+        <input type="checkbox" data-qid="${it.qid}" />
+        <img class="wd-result-thumb" src="${it.image||''}" onerror="this.style.opacity=0" />
+        <div class="wd-result-text">
+          <div class="wr-title">${escapeHtml(it.label)}</div>
+          <div class="wr-meta">${escapeHtml(it.architectLabel||'')}</div>
+        </div>
+      </label>
+    `).join('');
+    items.forEach(it=> wdResultsData[it.qid] = it);
+    wdResultsList.querySelectorAll('input[type=checkbox][data-qid]').forEach(cb=>{
+      cb.onchange = ()=>{
+        if(cb.checked) wdSelected.add(cb.dataset.qid); else wdSelected.delete(cb.dataset.qid);
+        updateWdCount();
+      };
+    });
+    const selectAll = document.getElementById('wdSelectAll');
+    if(selectAll){
+      selectAll.onchange = ()=>{
+        wdResultsList.querySelectorAll('input[type=checkbox][data-qid]').forEach(cb=>{
+          cb.checked = selectAll.checked;
+          if(selectAll.checked) wdSelected.add(cb.dataset.qid); else wdSelected.delete(cb.dataset.qid);
+        });
+        updateWdCount();
+      };
+    }
+    updateWdCount();
+  }
+
+  function updateWdCount(){
+    wdSelectedCount.textContent = `${wdSelected.size} sélectionné(s)`;
+    wdImportBtn.disabled = wdSelected.size === 0;
+  }
+
+  wdImportBtn.onclick = async ()=>{
+    let added = 0;
+    wdSelected.forEach(qid=>{
+      const already = projects.some(p=>p.wikidataId===qid);
+      if(already) return;
+      const it = wdResultsData[qid];
+      if(!it || !it.coord) return;
+      projects.push({
+        id: uid(), title: it.label, architect: it.architectLabel||'', city:'',
+        address:'', lat: it.coord.lat, lng: it.coord.lng,
+        image: it.image||'', source: it.source || ('https://www.wikidata.org/wiki/'+qid),
+        notes:'Importé depuis Wikidata.', wikidataId: qid
+      });
+      added++;
+    });
+    await persist();
+    rebuildMarkers();
+    wdOverlay.classList.remove('show');
+    showToast(added ? `${added} projet(s) importé(s) depuis Wikidata.` : 'Ces projets étaient déjà importés.');
+  };
+
+  // -- architect search --
+  document.getElementById('wdArchSearchBtn').onclick = async ()=>{
+    const q = document.getElementById('wdArchInput').value.trim();
+    const status = document.getElementById('wdArchStatus');
+    const wrap = document.getElementById('wdArchCandidatesWrap');
+    const select = document.getElementById('wdArchSelect');
+    if(!q){ status.textContent = "Saisissez un nom d'architecte."; return; }
+    status.textContent = 'Recherche de l\'architecte…';
+    wrap.style.display = 'none';
+    wdResultsList.innerHTML = '';
+    try{
+      const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(q)}&language=fr&format=json&origin=*&type=item&limit=8`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if(!data.search || !data.search.length){
+        status.textContent = 'Aucun architecte trouvé sur Wikidata.';
+        return;
+      }
+      select.innerHTML = data.search.map(c=>`<option value="${c.id}" data-label="${escapeHtml(c.label)}">${escapeHtml(c.label)}${c.description ? ' — '+escapeHtml(c.description) : ''}</option>`).join('');
+      wrap.style.display = '';
+      status.textContent = 'Choisissez l\'architecte, puis les bâtiments se chargent automatiquement.';
+      loadArchitectBuildings(select.value, select.options[select.selectedIndex].dataset.label);
+      select.onchange = ()=> loadArchitectBuildings(select.value, select.options[select.selectedIndex].dataset.label);
+    }catch(e){
+      status.textContent = 'Échec de la recherche (réseau).';
+    }
+  };
+
+  async function loadArchitectBuildings(qid, label){
+    const status = document.getElementById('wdArchStatus');
+    wdCurrentArchitectLabel = label;
+    status.textContent = `Chargement des bâtiments de ${label}…`;
+    wdResultsList.innerHTML = '';
+    const query = `
+      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article WHERE {
+        ?item wdt:P84 wd:${qid} .
+        ?item wdt:P625 ?coord .
+        OPTIONAL { ?item wdt:P18 ?image . }
+        OPTIONAL {
+          ?article schema:about ?item ;
+                   schema:isPartOf <https://fr.wikipedia.org/> .
+        }
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en". }
+      }
+      LIMIT 60
+    `;
+    try{
+      const rows = await sparqlQuery(query);
+      const items = rows.map(r=>{
+        const coord = parseWktPoint(r.coord && r.coord.value);
+        return {
+          qid: r.item.value.split('/').pop(),
+          label: r.itemLabel ? r.itemLabel.value : 'Sans titre',
+          coord,
+          image: r.image ? r.image.value : '',
+          source: r.article ? r.article.value : '',
+          architectLabel: label
+        };
+      }).filter(it=>it.coord);
+      status.textContent = items.length ? `${items.length} bâtiment(s) géolocalisé(s) trouvé(s).` : 'Aucun bâtiment géolocalisé trouvé pour cet architecte.';
+      renderWdResults(items);
+    }catch(e){
+      status.textContent = 'Échec de la requête Wikidata (réseau).';
+    }
+  }
+
+  // -- place search --
+  document.getElementById('wdPlaceSearchBtn').onclick = async ()=>{
+    const q = document.getElementById('wdPlaceInput').value.trim();
+    const radius = document.getElementById('wdRadius').value;
+    const status = document.getElementById('wdPlaceStatus');
+    if(!q){ status.textContent = 'Saisissez un lieu.'; return; }
+    status.textContent = 'Localisation du lieu…';
+    wdResultsList.innerHTML = '';
+    try{
+      const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+      const geoRes = await fetch(geoUrl, {headers:{'Accept':'application/json'}});
+      const geoData = await geoRes.json();
+      if(!geoData.length){ status.textContent = 'Lieu introuvable.'; return; }
+      const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
+      status.textContent = `Recherche des bâtiments dans un rayon de ${radius} km…`;
+      const query = `
+        SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel WHERE {
+          SERVICE wikibase:around {
+            ?item wdt:P625 ?coord .
+            bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
+            bd:serviceParam wikibase:radius "${radius}" .
+          }
+          ?item wdt:P31/wdt:P279* wd:Q811979 .
+          ?item wdt:P18 ?image .
+          OPTIONAL { ?item wdt:P84 ?architect . }
+          OPTIONAL {
+            ?article schema:about ?item ;
+                     schema:isPartOf <https://fr.wikipedia.org/> .
+          }
+          SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en". }
+        }
+        LIMIT 60
+      `;
+      const rows = await sparqlQuery(query);
+      const items = rows.map(r=>{
+        const coord = parseWktPoint(r.coord && r.coord.value);
+        return {
+          qid: r.item.value.split('/').pop(),
+          label: r.itemLabel ? r.itemLabel.value : 'Sans titre',
+          coord,
+          image: r.image ? r.image.value : '',
+          source: r.article ? r.article.value : '',
+          architectLabel: r.architectLabel ? r.architectLabel.value : ''
+        };
+      }).filter(it=>it.coord);
+      status.textContent = items.length ? `${items.length} bâtiment(s) trouvé(s) autour de "${q}".` : 'Aucun bâtiment avec image trouvé dans ce rayon — essayez un rayon plus large.';
+      renderWdResults(items);
+    }catch(e){
+      status.textContent = 'Échec de la requête (réseau).';
+    }
+  };
+
+  // -- year search --
+  document.getElementById('wdYearSearchBtn').onclick = async ()=>{
+    const year = parseInt(document.getElementById('wdYearInput').value.trim(), 10);
+    const status = document.getElementById('wdYearStatus');
+    if(!year || year < 1800 || year > 2100){ status.textContent = 'Saisissez une année valide.'; return; }
+    status.textContent = `Recherche des projets ${year} sur Wikidata… (peut prendre 10-20s)`;
+    wdResultsList.innerHTML = '';
+    const query = `
+      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?date WHERE {
+        ?item wdt:P31/wdt:P279* wd:Q811979 .
+        ?item wdt:P625 ?coord .
+        { ?item wdt:P571 ?date . } UNION { ?item wdt:P1619 ?date . }
+        FILTER(YEAR(?date) = ${year})
+        OPTIONAL { ?item wdt:P18 ?image . }
+        OPTIONAL { ?item wdt:P84 ?architect . }
+        OPTIONAL {
+          ?article schema:about ?item ;
+                   schema:isPartOf <https://fr.wikipedia.org/> .
+        }
+        SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en". }
+      }
+      LIMIT 300
+    `;
+    try{
+      const rows = await sparqlQuery(query);
+      const seen = new Set();
+      const items = [];
+      rows.forEach(r=>{
+        const qid = r.item.value.split('/').pop();
+        if(seen.has(qid)) return;
+        seen.add(qid);
+        const coord = parseWktPoint(r.coord && r.coord.value);
+        if(!coord) return;
+        items.push({
+          qid,
+          label: r.itemLabel ? r.itemLabel.value : 'Sans titre',
+          coord,
+          image: r.image ? r.image.value : '',
+          source: r.article ? r.article.value : '',
+          architectLabel: r.architectLabel ? r.architectLabel.value : ''
+        });
+      });
+      status.textContent = items.length
+        ? `${items.length} projet(s) daté(s) ${year} trouvé(s) sur Wikidata (limité à 300 résultats).`
+        : `Aucun projet daté ${year} trouvé sur Wikidata.`;
+      renderWdResults(items);
+    }catch(e){
+      status.textContent = 'Échec de la requête (réseau, ou requête trop lourde — réessayez).';
+    }
+  };
+
+  // ---- Seed examples (a few real, well-known projects covered by worldarchitecture.org) ----
+  function seedIfEmpty(){
+    if(projects.length) return;
+    projects = [
+      {
+        id: uid(), title:'Shenzhen Science & Technology Museum', architect:'Zaha Hadid Architects', city:'Shenzhen, Chine',
+        address:'', lat:22.7469, lng:113.8945,
+        image:'', source:'https://worldarchitecture.org/architecture-news/fppef/the-top-10-architecture-news-of-2025.html',
+        notes:'Exemple pré-chargé — remplacez l\'image par l\'URL réelle trouvée sur la fiche worldarchitecture.org.'
+      },
+      {
+        id: uid(), title:'Memphis Art Museum', architect:'Herzog & de Meuron', city:'Memphis, Tennessee, USA',
+        address:'', lat:35.1495, lng:-90.0490,
+        image:'', source:'https://worldarchitecture.org/architecture-news/fppmf/top-12-exciting-architecture-projects-expected-to-open-in-2026.html',
+        notes:'Exemple pré-chargé — ouverture prévue déc. 2026.'
+      },
+      {
+        id: uid(), title:'V&A East Museum', architect:"O'Donnell + Tuomey", city:'Queen Elizabeth Olympic Park, Londres',
+        address:'', lat:51.5433, lng:-0.0119,
+        image:'', source:'https://worldarchitecture.org/architecture-news/fppmf/top-12-exciting-architecture-projects-expected-to-open-in-2026.html',
+        notes:'Exemple pré-chargé — ouverture le 18 avril 2026.'
+      }
+    ];
+  }
+
+  // ---- Init ----
+  (async function(){
+    initMap();
+    await initStorage();
+    seedIfEmpty();
+    await persist();
+    rebuildMarkers();
+    if(projects.length){
+      const bounds = L.latLngBounds(projects.map(p=>[p.lat,p.lng]));
+      map.fitBounds(bounds.pad(0.4));
+    }
+  })();
+})();
+</script>
+</body>
+</html>

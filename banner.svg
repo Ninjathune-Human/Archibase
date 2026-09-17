@@ -1,0 +1,52 @@
+<svg viewBox="0 0 1280 320" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B1E33"/>
+      <stop offset="100%" stop-color="#0E2540"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#1E3A57" stroke-width="1"/>
+    </pattern>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="320" fill="url(#bg)"/>
+  <rect width="1280" height="320" fill="url(#grid)" opacity="0.35"/>
+
+  <!-- corner ticks, drafting-style -->
+  <g stroke="#3E7285" stroke-width="1.5">
+    <path d="M20 20H60M20 20V60" fill="none"/>
+    <path d="M1260 20H1220M1260 20V60" fill="none"/>
+    <path d="M20 300H60M20 300V260" fill="none"/>
+    <path d="M1260 300H1220M1260 300V260" fill="none"/>
+  </g>
+
+  <!-- pin mark -->
+  <g filter="url(#shadow)" transform="translate(120,95)">
+    <path d="M45 0C20.2 0 0 20.2 0 45c0 31.3 45 73 45 73s45-41.7 45-73C90 20.2 69.8 0 45 0z" fill="#C97A3D" stroke="#0B1E33" stroke-width="3"/>
+    <circle cx="45" cy="45" r="17" fill="#0B1E33"/>
+  </g>
+
+  <!-- coordinate ring around pin -->
+  <circle cx="165" cy="140" r="70" fill="none" stroke="#6FD3E0" stroke-width="1" opacity="0.35" stroke-dasharray="4 6"/>
+
+  <!-- text block -->
+  <text x="290" y="150" font-family="Georgia, 'Times New Roman', serif" font-size="72" fill="#F3EEE2" font-weight="700" letter-spacing="2">ATLAS</text>
+  <text x="292" y="188" font-family="Consolas, 'Courier New', monospace" font-size="17" fill="#6FD3E0" letter-spacing="3">RELEVÉ DE PROJETS D'ARCHITECTURE</text>
+
+  <line x1="292" y1="205" x2="820" y2="205" stroke="#C97A3D" stroke-width="2"/>
+
+  <text x="292" y="235" font-family="Georgia, serif" font-size="16" fill="#D9D0BC">Carte interactive, recherche, épingles manuelles</text>
+  <text x="292" y="258" font-family="Georgia, serif" font-size="16" fill="#D9D0BC">et import Wikidata — mono-fichier HTML/JS</text>
+
+  <!-- small building glyphs, right side -->
+  <g transform="translate(980,60)" opacity="0.85">
+    <rect x="0" y="90" width="34" height="130" fill="none" stroke="#3E7285" stroke-width="2"/>
+    <rect x="46" y="50" width="34" height="170" fill="none" stroke="#3E7285" stroke-width="2"/>
+    <rect x="92" y="110" width="34" height="110" fill="none" stroke="#3E7285" stroke-width="2"/>
+    <rect x="138" y="20" width="34" height="200" fill="none" stroke="#6FD3E0" stroke-width="2"/>
+    <line x1="0" y1="220" x2="172" y2="220" stroke="#3E7285" stroke-width="2"/>
+  </g>
+</svg>
