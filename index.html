@@ -7,25 +7,36 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0B1E33;
-    --ink-2:#12283F;
-    --grid:#1E3A57;
-    --blueprint:#6FD3E0;
-    --blueprint-dim:#3E7285;
-    --text-dim:#8FB3C4;
-    --paper:#F3EEE2;
-    --paper-dim:#D9D0BC;
-    --copper:#C97A3D;
-    --copper-bright:#E39A5C;
-    --danger:#D9694F;
-    --text-on-paper:#1B1712;
+    --ink:#0A0A0A;
+    --ink-2:#161616;
+    --grid:#282828;
+    --blueprint:#EDEDEA;
+    --blueprint-dim:#525252;
+    --text-dim:#9A9A9A;
+    --paper:#FAFAF8;
+    --paper-dim:#E2E0DC;
+    --copper:#E1332B;
+    --copper-bright:#FF4B3E;
+    --danger:#B3261E;
+    --text-on-paper:#111111;
     --ease-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
     --ease-out: cubic-bezier(0, 0, 0.58, 1);
     --duration-fast: 150ms;
     --duration-medium: 250ms;
+    /* Concentric radius scale — outer = inner + padding */
+    --radius-xs: 6px;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 18px;
+    --radius-full: 999px;
+    /* Elevation — soft, never a hard offset stamp-shadow */
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.28);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.32);
+    --shadow-lg: 0 16px 40px rgba(0,0,0,0.4);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
@@ -38,9 +49,9 @@
   /* focus visibility — every interactive element gets a clear ring */
   a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible,
   select:focus-visible, [tabindex]:focus-visible{
-    outline:2px solid var(--blueprint);
+    outline:2px solid var(--copper);
     outline-offset:2px;
-    border-radius:2px;
+    border-radius:var(--radius-xs);
   }
   @media (prefers-reduced-motion: reduce){
     *{transition-duration:0.001ms !important; animation-duration:0.001ms !important;}
@@ -68,16 +79,22 @@
     padding-top:env(safe-area-inset-top, 0px);
   }
   .panel{
-    background:rgba(11,30,51,0.92);
-    border:1px solid var(--grid);
-    border-radius:2px;
-    backdrop-filter:blur(6px);
+    background:color-mix(in srgb, var(--ink) 78%, transparent);
+    border:1px solid color-mix(in srgb, var(--blueprint) 20%, transparent);
+    border-radius:var(--radius-lg);
+    backdrop-filter:blur(20px) saturate(1.6);
+    -webkit-backdrop-filter:blur(20px) saturate(1.6);
+    box-shadow:var(--shadow-sm);
     pointer-events:auto;
   }
+  @media (prefers-reduced-transparency: reduce){
+    .panel{ background:var(--ink-2); backdrop-filter:none; -webkit-backdrop-filter:none; }
+  }
   #brand{
-    padding:10px 16px;
+    padding:10px 18px;
     display:flex; flex-direction:column; gap:2px;
     border-left:3px solid var(--copper);
+    border-top-left-radius:var(--radius-xs); border-bottom-left-radius:var(--radius-xs);
   }
   #brand .title{
     font-family:'Space Grotesk', sans-serif;
@@ -91,7 +108,8 @@
   #searchwrap{
     flex:1; min-width:220px; max-width:480px;
     display:flex; align-items:center; gap:8px;
-    padding:0 14px;
+    padding:0 18px;
+    border-radius:var(--radius-full) !important;
   }
   #searchwrap svg{flex-shrink:0; opacity:0.6;}
   #search{
@@ -107,35 +125,60 @@
 
   #addBtn{
     min-height:44px;
-    padding:0 18px;
+    padding:0 20px;
     background:var(--copper);
     color:var(--ink);
-    border:none; border-radius:2px;
+    border:none; border-radius:var(--radius-full);
     font-family:'Space Grotesk'; font-weight:600; font-size:13px;
     letter-spacing:0.03em;
     cursor:pointer;
     pointer-events:auto;
     display:flex; align-items:center; gap:8px;
-    transition:background var(--duration-fast) var(--ease-standard);
+    box-shadow:var(--shadow-sm);
+    transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
   }
-  #addBtn:hover{background:var(--copper-bright);}
+  #addBtn:hover{background:var(--copper-bright); transform:translateY(-1px);}
   #addBtn.active{background:var(--danger); color:var(--paper);}
   #wdBtn{
     min-height:44px;
-    padding:0 18px;
-    background:var(--ink-2);
+    padding:0 20px;
+    background:color-mix(in srgb, var(--ink-2) 88%, transparent);
     color:var(--blueprint);
-    border:1px solid var(--blueprint-dim);
-    border-radius:2px;
+    border:1px solid var(--blueprint-dim); border-radius:var(--radius-full);
     font-family:'Space Grotesk'; font-weight:600; font-size:13px;
     letter-spacing:0.03em;
     cursor:pointer;
     pointer-events:auto;
     display:flex; align-items:center; gap:8px;
+    transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+  }
+  #wdBtn:hover{background:var(--grid); transform:translateY(-1px);}
+  .btn-icon{font-size:15px; line-height:1;}
+
+  .more-wrap{position:relative; pointer-events:auto;}
+  #moreBtn{
+    min-height:44px; min-width:44px; padding:0 14px;
+    background:color-mix(in srgb, var(--ink-2) 88%, transparent); color:var(--blueprint);
+    border:1px solid var(--blueprint-dim); border-radius:var(--radius-full);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:18px; letter-spacing:0.05em;
     transition:background var(--duration-fast) var(--ease-standard);
   }
-  #wdBtn:hover{background:var(--grid);}
-  .btn-icon{font-size:15px; line-height:1;}
+  #moreBtn:hover{background:var(--grid);}
+  #moreMenu{
+    display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:1100;
+    background:color-mix(in srgb, var(--ink) 94%, transparent); border:1px solid var(--grid); border-radius:var(--radius-md);
+    min-width:240px; overflow:hidden; box-shadow:var(--shadow-md);
+  }
+  #moreMenu.show{display:block;}
+  #moreMenu button{
+    display:flex; align-items:center; gap:10px; width:100%; min-height:44px;
+    padding:0 14px; background:none; border:none; text-align:left; cursor:pointer;
+    font-family:'IBM Plex Sans'; font-size:13px; color:var(--paper);
+    border-bottom:1px solid var(--grid);
+  }
+  #moreMenu button:last-of-type{border-bottom:none;}
+  #moreMenu button:hover{background:rgba(255,255,255,0.08);}
 
   /* Compact topbar: stack search on its own row, buttons become icon-only 44x44 */
   @media (max-width: 700px){
@@ -161,11 +204,12 @@
     display:flex; gap:10px; padding:10px 14px; cursor:pointer;
     border-bottom:1px solid var(--grid);
     align-items:center;
+    transition:background var(--duration-fast) var(--ease-standard);
   }
   .result-item:last-child{border-bottom:none;}
-  .result-item:hover{background:rgba(111,211,224,0.08);}
+  .result-item:hover, .result-item:focus-visible{background:rgba(255,255,255,0.06);}
   .result-thumb{
-    width:44px; height:44px; border-radius:2px; object-fit:cover;
+    width:44px; height:44px; border-radius:var(--radius-xs); object-fit:cover;
     background:var(--grid); flex-shrink:0;
     border:1px solid var(--blueprint-dim);
   }
@@ -176,16 +220,17 @@
   .archive-card{
     background:var(--paper) !important;
     color:var(--text-on-paper);
-    border-radius:2px !important;
+    border-radius:var(--radius-md) !important;
     border:1px solid var(--paper-dim) !important;
-    box-shadow:2px 3px 0 rgba(0,0,0,0.35) !important;
+    box-shadow:var(--shadow-md) !important;
     padding:0 !important;
-    width:220px;
+    width:240px;
+    overflow:hidden;
   }
   .archive-card .leaflet-popup-content-wrapper{
     background:transparent; box-shadow:none; padding:0; border-radius:0;
   }
-  .archive-card .leaflet-popup-content{margin:0; width:220px !important;}
+  .archive-card .leaflet-popup-content{margin:0; width:240px !important;}
   .archive-card .leaflet-popup-tip{background:var(--paper);}
   .ac-img{
     width:100%; height:120px; object-fit:cover; display:block;
@@ -194,11 +239,33 @@
   }
   .ac-body{padding:10px 12px;}
   .ac-title{font-family:'Space Grotesk'; font-weight:600; font-size:13px; line-height:1.25; margin-bottom:3px;}
-  .ac-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#6b5f4a; letter-spacing:0.02em;}
+  .ac-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#4D4D4D; letter-spacing:0.02em;}
+  .ac-links{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:6px;}
   .ac-link{
-    display:inline-block; margin-top:6px; font-size:11px; color:var(--copper);
+    font-size:11px; color:var(--copper);
     text-decoration:none; font-weight:600; border-bottom:1px solid var(--copper);
   }
+  .ac-link-secondary{color:#4D4D4D; border-bottom-color:#6E6E6E;}
+  .ac-gallery-badge{
+    font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E;
+    background:var(--paper-dim); padding:2px 6px; border-radius:var(--radius-xs);
+  }
+  .ac-visited-badge{
+    font-family:'IBM Plex Mono'; font-size:10px; color:#fff;
+    background:#E1332B; padding:2px 6px; border-radius:var(--radius-xs);
+  }
+  .ac-visited-toggle{
+    display:block; width:100%; margin-top:8px; padding:10px 0; min-height:38px;
+    background:none; border:1px solid var(--paper-dim); border-radius:var(--radius-sm);
+    font-family:'IBM Plex Mono'; font-size:11px; color:var(--text-on-paper);
+    cursor:pointer;
+  }
+  .ac-visited-toggle:hover{border-color:#E1332B; color:#E1332B;}
+  .field-checkbox{
+    display:flex; align-items:center; gap:8px; min-height:44px; margin:-6px 0 8px; cursor:pointer;
+    font-family:'IBM Plex Mono'; font-size:12px; color:var(--text-on-paper);
+  }
+  .field-checkbox input{width:20px; height:20px; accent-color:#E1332B; cursor:pointer;}
 
   /* Custom pin marker */
   .pin-icon{
@@ -219,7 +286,7 @@
   #modal{
     width:420px; max-width:92vw; max-height:88vh; overflow-y:auto;
     background:var(--paper); color:var(--text-on-paper);
-    border-radius:2px; box-shadow:4px 6px 0 rgba(0,0,0,0.4);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
   }
   #modal .m-head{
     padding:16px 20px; border-bottom:2px solid var(--copper);
@@ -230,63 +297,73 @@
   }
   #modal .m-head .m-eyebrow{
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    color:#8a7c62; margin-bottom:3px;
+    color:#6E6E6E; margin-bottom:3px;
   }
   .m-close{
     width:44px; height:44px; display:flex; align-items:center; justify-content:center;
-    background:none; border:none; font-size:22px; cursor:pointer; color:#8a7c62; line-height:1;
+    background:none; border:none; border-radius:var(--radius-full); font-size:22px; cursor:pointer; color:#6E6E6E; line-height:1;
     margin:-10px -12px -10px 0;
+    transition:background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
   }
+  .m-close:hover{background:rgba(0,0,0,0.06); color:var(--text-on-paper);}
   #modal .m-body{padding:18px 20px;}
   .field{margin-bottom:14px;}
   .field label{
     display:block; font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase;
-    letter-spacing:0.06em; color:#8a7c62; margin-bottom:5px;
+    letter-spacing:0.06em; color:#6E6E6E; margin-bottom:5px;
   }
   .field input, .field textarea{
-    width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:2px;
+    width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm);
     font-family:'IBM Plex Sans'; font-size:13px; background:#fff; color:var(--text-on-paper);
     outline:none;
   }
-  .field input:focus, .field textarea:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(201,122,61,0.18);}
+  .field input:focus, .field textarea:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(225,51,43,0.18);}
   .field textarea{resize:vertical; min-height:50px;}
   .field-row{display:flex; gap:10px;}
   .field-row .field{flex:1;}
   .geocode-btn{
     margin-top:6px; min-height:44px; padding:0 14px; font-size:12px; font-family:'IBM Plex Mono';
-    background:var(--ink); color:var(--blueprint); border:none; border-radius:2px; cursor:pointer;
+    background:var(--ink); color:var(--blueprint); border:none; border-radius:var(--radius-sm); cursor:pointer;
   }
-  .geocode-status{font-size:11px; color:#8a7c62; margin-top:5px; font-family:'IBM Plex Mono';}
+  .geocode-status{font-size:11px; color:#6E6E6E; margin-top:5px; font-family:'IBM Plex Mono';}
   .m-actions{
     display:flex; justify-content:space-between; align-items:center;
     padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--paper-dim);
   }
   .btn-primary{
-    background:var(--copper); color:var(--ink); border:none; padding:10px 20px;
-    font-family:'Space Grotesk'; font-weight:600; font-size:13px; border-radius:2px; cursor:pointer;
+    background:var(--copper); color:var(--ink); border:none; padding:10px 22px; min-height:44px;
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px; border-radius:var(--radius-full); cursor:pointer;
+    box-shadow:var(--shadow-sm);
+    transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
   }
-  .btn-primary:hover{background:var(--copper-bright);}
-  .btn-primary:disabled{opacity:0.4; cursor:default; background:var(--paper-dim); color:#8a7c62;}
+  .btn-primary:hover{background:var(--copper-bright); transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:0.4; cursor:default; background:var(--paper-dim); color:#6E6E6E; box-shadow:none; transform:none;}
   .btn-danger{
     background:none; color:var(--danger); border:none; font-size:12px; cursor:pointer;
+    min-height:44px; padding:0 8px; border-radius:var(--radius-sm);
     font-family:'IBM Plex Mono'; text-decoration:underline;
+    transition:background var(--duration-fast) var(--ease-standard);
   }
+  .btn-danger:hover{background:rgba(179,38,30,0.1);}
   .hint{
-    font-size:11px; color:#8a7c62; line-height:1.5; margin-top:-6px; margin-bottom:14px;
+    font-size:11px; color:#6E6E6E; line-height:1.5; margin-top:-6px; margin-bottom:14px;
   }
+  #f-gallery{display:flex; flex-wrap:wrap; gap:6px;}
+  #f-gallery a{display:block; width:52px; height:52px; border-radius:var(--radius-xs); overflow:hidden; border:1px solid var(--paper-dim);}
+  #f-gallery img{width:100%; height:100%; object-fit:cover; display:block;}
 
   /* Empty state toast */
   #toast{
     position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
     background:var(--ink-2); border:1px solid var(--copper); color:var(--paper);
-    padding:10px 18px; border-radius:2px; font-size:13px; z-index:2500;
+    padding:10px 18px; border-radius:var(--radius-md); font-size:13px; z-index:2500;
     display:none; font-family:'IBM Plex Sans';
   }
   #toast.show{display:block;}
 
   #crosshairHint{
     position:absolute; top:80px; left:50%; transform:translateX(-50%);
-    background:var(--danger); color:var(--paper); padding:8px 16px; border-radius:2px;
+    background:var(--danger); color:var(--paper); padding:8px 16px; border-radius:var(--radius-md);
     font-family:'IBM Plex Mono'; font-size:11px; z-index:1000; display:none;
     letter-spacing:0.03em;
   }
@@ -321,7 +398,7 @@
   #wdModal{
     width:560px; max-width:94vw; max-height:88vh;
     background:var(--paper); color:var(--text-on-paper);
-    border-radius:2px; box-shadow:4px 6px 0 rgba(0,0,0,0.4);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
     display:flex; flex-direction:column;
   }
   #wdModal .m-head{
@@ -331,50 +408,53 @@
   #wdModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
   #wdModal .m-head .m-eyebrow{
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    color:#8a7c62; margin-bottom:3px;
+    color:#6E6E6E; margin-bottom:3px;
   }
   .wd-tabs{display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--paper-dim);}
   .wd-tab{
     padding:10px 4px; margin-right:20px; background:none; border:none; cursor:pointer;
     font-family:'IBM Plex Mono'; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;
-    color:#8a7c62; border-bottom:2px solid transparent;
+    color:#6E6E6E; border-bottom:2px solid transparent;
   }
   .wd-tab.active{color:var(--text-on-paper); border-bottom-color:var(--copper);}
   #wdModal .wd-body{padding:16px 20px; overflow-y:auto; flex:1;}
   .wd-row{display:flex; gap:8px; margin-bottom:10px;}
   .wd-row input, .wd-row select{
-    min-height:44px; padding:0 10px; border:1px solid var(--paper-dim); border-radius:2px;
+    min-height:44px; padding:0 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm);
     font-family:'IBM Plex Sans'; font-size:13px; background:#fff; color:var(--text-on-paper);
     outline:none;
   }
-  .wd-row input:focus, .wd-row select:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(201,122,61,0.18);}
+  .wd-row input:focus, .wd-row select:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(225,51,43,0.18);}
   .wd-row input{flex:1;}
   .wd-btn{
     min-height:44px;
     background:var(--ink); color:var(--blueprint); border:none; padding:0 14px;
-    font-family:'IBM Plex Mono'; font-size:11px; border-radius:2px; cursor:pointer; white-space:nowrap;
+    font-family:'IBM Plex Mono'; font-size:11px; border-radius:var(--radius-sm); cursor:pointer; white-space:nowrap;
   }
   .wd-btn:disabled{opacity:0.4; cursor:default;}
   .wd-candidates{margin-bottom:10px;}
-  .wd-candidates select{width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:2px; font-family:'IBM Plex Sans'; font-size:13px;}
-  .wd-status{font-family:'IBM Plex Mono'; font-size:11px; color:#8a7c62; margin:6px 0 12px;}
+  .wd-candidates select{width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm); font-family:'IBM Plex Sans'; font-size:13px;}
+  .wd-status{font-family:'IBM Plex Mono'; font-size:11px; color:#6E6E6E; margin:6px 0 12px;}
   .wd-results{border-top:1px solid var(--paper-dim);}
   .wd-result-item{
-    display:flex; gap:10px; padding:9px 0; align-items:center;
+    display:flex; gap:10px; padding:9px 4px; align-items:center;
     border-bottom:1px solid var(--paper-dim);
+    border-radius:var(--radius-xs);
+    transition:background var(--duration-fast) var(--ease-standard);
   }
-  .wd-result-item input[type=checkbox]{width:16px; height:16px; flex-shrink:0; accent-color:var(--copper);}
+  .wd-result-item:hover{background:rgba(0,0,0,0.04);}
+  .wd-result-item input[type=checkbox]{width:20px; height:20px; flex-shrink:0; accent-color:var(--copper);}
   .wd-result-thumb{
-    width:40px; height:40px; border-radius:2px; object-fit:cover; flex-shrink:0;
+    width:40px; height:40px; border-radius:var(--radius-xs); object-fit:cover; flex-shrink:0;
     background:var(--paper-dim); border:1px solid var(--paper-dim);
   }
   .wd-result-text .wr-title{font-size:13px; font-weight:500;}
-  .wd-result-text .wr-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#8a7c62; margin-top:2px;}
+  .wd-result-text .wr-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E; margin-top:2px;}
   #wdModal .m-actions{
     display:flex; justify-content:space-between; align-items:center;
     padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--paper-dim);
   }
-  #wdSelectedCount{font-family:'IBM Plex Mono'; font-size:11px; color:#8a7c62;}
+  #wdSelectedCount{font-family:'IBM Plex Mono'; font-size:11px; color:#6E6E6E;}
 </style>
 </head>
 <body>
@@ -388,16 +468,30 @@
     <div class="subtitle">Relevé de projets — worldarchitecture.org</div>
   </div>
   <div id="searchwrap" class="panel">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6FD3E0" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EDEDEA" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
     <input id="search" type="text" placeholder="Rechercher un bâtiment, un architecte, une ville…" aria-label="Rechercher un projet" />
     <span id="searchCount" aria-live="polite"></span>
   </div>
-  <button id="wdBtn" aria-label="Importer depuis Wikidata" title="Importer depuis Wikidata">
-    <span class="btn-icon" aria-hidden="true">⊕</span><span class="btn-label">Importer depuis Wikidata</span>
+  <button id="wdBtn" aria-label="Importer des bâtiments" title="Importer des bâtiments">
+    <span class="btn-icon" aria-hidden="true">⊕</span><span class="btn-label">Importer des bâtiments</span>
   </button>
   <button id="addBtn" aria-label="Ajouter un projet" title="Ajouter un projet">
     <span class="btn-icon" aria-hidden="true">+</span><span class="btn-label">Ajouter un projet</span>
   </button>
+  <div class="more-wrap">
+    <button id="moreBtn" aria-label="Plus d'options" title="Plus d'options" aria-haspopup="true" aria-expanded="false">
+      <span class="btn-icon" aria-hidden="true">⋯</span>
+    </button>
+    <div id="moreMenu" role="menu">
+      <button type="button" id="exportBtn" role="menuitem">
+        <span aria-hidden="true">↓</span> Exporter les données (.json)
+      </button>
+      <button type="button" id="importBtn" role="menuitem">
+        <span aria-hidden="true">↑</span> Importer des données (.json)
+      </button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+    </div>
+  </div>
 </div>
 
 <div id="crosshairHint">Cliquez sur la carte pour placer l'épingle — Échap pour annuler</div>
@@ -418,6 +512,10 @@
         <label>Nom du bâtiment / projet</label>
         <input id="f-title" type="text" placeholder="ex. Musée des Confluences" />
       </div>
+      <label class="field-checkbox">
+        <input id="f-visited" type="checkbox" />
+        <span>Visité</span>
+      </label>
       <div class="field-row">
         <div class="field">
           <label>Architecte(s)</label>
@@ -447,6 +545,10 @@
         <label>Notes</label>
         <textarea id="f-notes" placeholder="Notes libres…"></textarea>
       </div>
+      <div class="field" id="f-gallery-wrap" style="display:none;">
+        <label>Photos supplémentaires (Wikimedia Commons)</label>
+        <div id="f-gallery"></div>
+      </div>
     </div>
     <div class="m-actions">
       <button class="btn-danger" id="deleteBtn" style="display:none;">Supprimer ce projet</button>
@@ -459,7 +561,7 @@
   <div id="wdModal">
     <div class="m-head">
       <div>
-        <div class="m-eyebrow">Wikidata</div>
+        <div class="m-eyebrow">Import</div>
         <h2>Importer des bâtiments</h2>
       </div>
       <button class="m-close" id="wdClose" aria-label="Fermer">×</button>
@@ -468,6 +570,7 @@
       <button class="wd-tab active" data-tab="architect">Par architecte</button>
       <button class="wd-tab" data-tab="place">Par lieu</button>
       <button class="wd-tab" data-tab="year">Par année</button>
+      <button class="wd-tab" data-tab="rce">Pays-Bas (RCE)</button>
     </div>
     <div class="wd-body">
       <div id="wd-pane-architect">
@@ -500,6 +603,19 @@
         </div>
         <div class="wd-status" id="wdYearStatus">Cherche les structures architecturales dont la date d'achèvement ou d'ouverture officielle correspond à cette année, toutes localisations confondues. Peut prendre quelques secondes.</div>
       </div>
+      <div id="wd-pane-rce" style="display:none;">
+        <div class="wd-row">
+          <input id="wdRceInput" type="text" placeholder="Ville néerlandaise, ex. Rotterdam" />
+          <select id="wdRceRadius">
+            <option value="2">2 km</option>
+            <option value="5" selected>5 km</option>
+            <option value="10">10 km</option>
+            <option value="20">20 km</option>
+          </select>
+          <button class="wd-btn" id="wdRceSearchBtn">Rechercher</button>
+        </div>
+        <div class="wd-status" id="wdRceStatus">Rijksmonumenten — registre officiel néerlandais (RCE), enrichi de photos Wikimedia Commons quand disponibles.</div>
+      </div>
       <div class="wd-results" id="wdResultsList"></div>
     </div>
     <div class="m-actions">
@@ -511,6 +627,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.20/leaflet-maplibre-gl.js"></script>
 <script>
 (function(){
   const STORAGE_KEY = 'wa-atlas-projects';
@@ -523,12 +641,16 @@
 
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
 
-  function pinDivIcon(){
+  function pinDivIcon(visited){
+    const fill = visited ? '#E1332B' : '#FAFAF8';
+    const mark = visited ? '#FAFAF8' : '#0A0A0A';
     return L.divIcon({
       className:'',
       html:`<div class="pin-icon"><svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">
-        <path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" fill="#C97A3D" stroke="#0B1E33" stroke-width="1.5"/>
-        <circle cx="13" cy="13" r="5" fill="#0B1E33"/>
+        <path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" fill="${fill}" stroke="#0A0A0A" stroke-width="1.5"/>
+        ${visited
+          ? `<path d="M8 13.5l3.2 3.2L18 10" fill="none" stroke="${mark}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
+          : `<circle cx="13" cy="13" r="5" fill="${mark}"/>`}
       </div>`,
       iconSize:[26,34],
       iconAnchor:[13,34],
@@ -565,10 +687,15 @@
     const img = p.image ? `<img class="ac-img" src="${escapeHtml(p.image)}" onerror="this.style.display='none'"/>` : '';
     const meta = [p.architect, p.city].filter(Boolean).join(' · ');
     const link = p.source ? `<a class="ac-link" href="${escapeHtml(p.source)}" target="_blank" rel="noopener">Voir l'article ↗</a>` : '';
+    const structuraeUrl = 'https://structurae.net/en/search?query=' + encodeURIComponent(p.title||'');
+    const structuraeLink = `<a class="ac-link ac-link-secondary" href="${structuraeUrl}" target="_blank" rel="noopener">Structurae ↗</a>`;
+    const galleryBadge = (p.images && p.images.length > 1) ? `<span class="ac-gallery-badge">+${p.images.length - 1} photo${p.images.length > 2 ? 's' : ''}</span>` : '';
+    const visitedBadge = p.visited ? `<span class="ac-visited-badge">✓ Visité</span>` : '';
     return `<div>${img}<div class="ac-body">
       <div class="ac-title">${escapeHtml(p.title||'Sans titre')}</div>
       ${meta ? `<div class="ac-meta">${escapeHtml(meta)}</div>` : ''}
-      ${link}
+      <div class="ac-links">${link}${structuraeLink}${galleryBadge}${visitedBadge}</div>
+      <button type="button" class="ac-visited-toggle" data-id="${escapeHtml(p.id)}">${p.visited ? 'Marquer non visité' : '✓ Marquer comme visité'}</button>
     </div></div>`;
   }
 
@@ -577,7 +704,7 @@
   }
 
   function addMarkerToMap(p){
-    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(), draggable:true});
+    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable:true});
     m.bindPopup(popupHtml(p), {className:'archive-card', closeButton:true});
     m.on('mouseover', ()=> m.openPopup());
     m.on('click', ()=> openEditModal(p.id));
@@ -590,6 +717,20 @@
     clusterGroup.addLayer(m);
   }
 
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.ac-visited-toggle');
+    if(!btn) return;
+    const p = projects.find(x=>x.id===btn.dataset.id);
+    if(!p) return;
+    p.visited = !p.visited;
+    persist();
+    const m = markers[p.id];
+    if(m){
+      m.setIcon(pinDivIcon(p.visited));
+      m.setPopupContent(popupHtml(p));
+    }
+  });
+
   function rebuildMarkers(){
     clusterGroup.clearLayers();
     markers = {};
@@ -597,13 +738,10 @@
   }
 
   function initMap(){
-    map = L.map('map', {zoomControl:true, worldCopyJump:true}).setView([46.6, 2.4], 5);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, OpenStreetMap contributors',
-      maxZoom: 19, maxNativeZoom: 16
-    }).addTo(map);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, maxNativeZoom: 16
+    map = L.map('map', {zoomControl:true, worldCopyJump:true, minZoom:1}).setView([46.6, 2.4], 5);
+    L.maplibreGL({
+      style: 'https://tiles.openfreemap.org/styles/dark',
+      attribution: '&copy; OpenFreeMap &copy; OpenStreetMap contributors'
     }).addTo(map);
 
     clusterGroup = L.markerClusterGroup({
@@ -663,12 +801,15 @@
   const fImage = document.getElementById('f-image');
   const fSource = document.getElementById('f-source');
   const fNotes = document.getElementById('f-notes');
+  const fVisited = document.getElementById('f-visited');
   const geocodeStatus = document.getElementById('geocodeStatus');
 
   function clearForm(){
     fTitle.value=''; fArchitect.value=''; fCity.value=''; fAddress.value='';
-    fImage.value=''; fSource.value=''; fNotes.value='';
+    fImage.value=''; fSource.value=''; fNotes.value=''; fVisited.checked = false;
     geocodeStatus.textContent='';
+    document.getElementById('f-gallery-wrap').style.display = 'none';
+    document.getElementById('f-gallery').innerHTML = '';
   }
 
   function openCreateModal(latlng){
@@ -688,8 +829,17 @@
     editingId = id;
     fTitle.value = p.title||''; fArchitect.value = p.architect||''; fCity.value = p.city||'';
     fAddress.value = p.address||''; fImage.value = p.image||''; fSource.value = p.source||'';
-    fNotes.value = p.notes||'';
+    fNotes.value = p.notes||''; fVisited.checked = !!p.visited;
     geocodeStatus.textContent='';
+    const galleryWrap = document.getElementById('f-gallery-wrap');
+    const gallery = document.getElementById('f-gallery');
+    if(p.images && p.images.length > 1){
+      gallery.innerHTML = p.images.map(u=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><img src="${escapeHtml(u)}" onerror="this.parentElement.style.display='none'"/></a>`).join('');
+      galleryWrap.style.display = '';
+    }else{
+      gallery.innerHTML = '';
+      galleryWrap.style.display = 'none';
+    }
     document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('modalTitle').textContent = p.title || 'Projet';
     document.getElementById('deleteBtn').style.display = 'inline';
@@ -731,7 +881,7 @@
       const p = projects.find(x=>x.id===editingId);
       p.title=title; p.architect=fArchitect.value.trim(); p.city=fCity.value.trim();
       p.address=fAddress.value.trim(); p.image=fImage.value.trim(); p.source=fSource.value.trim();
-      p.notes=fNotes.value.trim();
+      p.notes=fNotes.value.trim(); p.visited=fVisited.checked;
       if(pendingLatLng){ p.lat=pendingLatLng.lat; p.lng=pendingLatLng.lng; }
       await persist();
       rebuildMarkers();
@@ -744,7 +894,8 @@
       const p = {
         id: uid(), title, architect: fArchitect.value.trim(), city: fCity.value.trim(),
         address: fAddress.value.trim(), lat: pendingLatLng.lat, lng: pendingLatLng.lng,
-        image: fImage.value.trim(), source: fSource.value.trim(), notes: fNotes.value.trim()
+        image: fImage.value.trim(), source: fSource.value.trim(), notes: fNotes.value.trim(),
+        visited: fVisited.checked
       };
       projects.push(p);
       await persist();
@@ -845,6 +996,7 @@
       document.getElementById('wd-pane-architect').style.display = tab.dataset.tab==='architect' ? '' : 'none';
       document.getElementById('wd-pane-place').style.display = tab.dataset.tab==='place' ? '' : 'none';
       document.getElementById('wd-pane-year').style.display = tab.dataset.tab==='year' ? '' : 'none';
+      document.getElementById('wd-pane-rce').style.display = tab.dataset.tab==='rce' ? '' : 'none';
       wdResultsList.innerHTML=''; wdSelected = new Set(); updateWdCount();
     };
   });
@@ -910,25 +1062,44 @@
     wdImportBtn.disabled = wdSelected.size === 0;
   }
 
+  async function fetchCommonsGallery(commonscat){
+    try{
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent('Category:'+commonscat)}&cmtype=file&cmlimit=8&format=json&origin=*`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const members = (data.query && data.query.categorymembers) || [];
+      return members.map(m => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(m.title.replace(/^File:/,'')));
+    }catch(e){ return []; }
+  }
+
   wdImportBtn.onclick = async ()=>{
     let added = 0;
-    wdSelected.forEach(qid=>{
-      const already = projects.some(p=>p.wikidataId===qid);
-      if(already) return;
+    let enrichedCount = 0;
+    for(const qid of Array.from(wdSelected)){
+      const already = projects.some(p=> p.wikidataId===qid || p.rceId===qid);
+      if(already) continue;
       const it = wdResultsData[qid];
-      if(!it || !it.coord) return;
-      projects.push({
+      if(!it || !it.coord) continue;
+      let images = it.image ? [it.image] : [];
+      if(!it.rce && it.commonscat && enrichedCount < 50){
+        enrichedCount++;
+        (await fetchCommonsGallery(it.commonscat)).forEach(u=>{ if(!images.includes(u)) images.push(u); });
+      }
+      const project = {
         id: uid(), title: it.label, architect: it.architectLabel||'', city:'',
         address:'', lat: it.coord.lat, lng: it.coord.lng,
-        image: it.image||'', source: it.source || ('https://www.wikidata.org/wiki/'+qid),
-        notes:'Importé depuis Wikidata.', wikidataId: qid
-      });
+        image: images[0]||'', source: it.source || (it.rce ? '' : ('https://www.wikidata.org/wiki/'+qid)),
+        notes: it.rce ? 'Importé depuis le registre RCE (Pays-Bas).' : 'Importé depuis Wikidata.',
+        images
+      };
+      if(it.rce) project.rceId = qid; else project.wikidataId = qid;
+      projects.push(project);
       added++;
-    });
+    }
     await persist();
     rebuildMarkers();
     wdOverlay.classList.remove('show');
-    showToast(added ? `${added} projet(s) importé(s) depuis Wikidata.` : 'Ces projets étaient déjà importés.');
+    showToast(added ? `${added} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
   };
 
   // -- architect search --
@@ -965,10 +1136,11 @@
     status.textContent = `Chargement des bâtiments de ${label}…`;
     wdResultsList.innerHTML = '';
     const query = `
-      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article WHERE {
+      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?commonscat WHERE {
         ?item wdt:P84 wd:${qid} .
         ?item wdt:P625 ?coord .
         OPTIONAL { ?item wdt:P18 ?image . }
+        OPTIONAL { ?item wdt:P373 ?commonscat . }
         OPTIONAL {
           ?article schema:about ?item ;
                    schema:isPartOf <https://fr.wikipedia.org/> .
@@ -987,6 +1159,7 @@
           coord,
           image: r.image ? r.image.value : '',
           source: r.article ? r.article.value : '',
+          commonscat: r.commonscat ? r.commonscat.value : '',
           architectLabel: label
         };
       }).filter(it=>it.coord);
@@ -1013,7 +1186,7 @@
       const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
       status.textContent = `Recherche des bâtiments dans un rayon de ${radius} km…`;
       const query = `
-        SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel WHERE {
+        SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?commonscat WHERE {
           SERVICE wikibase:around {
             ?item wdt:P625 ?coord .
             bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -1022,6 +1195,7 @@
           ?item wdt:P31/wdt:P279* wd:Q811979 .
           ?item wdt:P18 ?image .
           OPTIONAL { ?item wdt:P84 ?architect . }
+          OPTIONAL { ?item wdt:P373 ?commonscat . }
           OPTIONAL {
             ?article schema:about ?item ;
                      schema:isPartOf <https://fr.wikipedia.org/> .
@@ -1039,6 +1213,7 @@
           coord,
           image: r.image ? r.image.value : '',
           source: r.article ? r.article.value : '',
+          commonscat: r.commonscat ? r.commonscat.value : '',
           architectLabel: r.architectLabel ? r.architectLabel.value : ''
         };
       }).filter(it=>it.coord);
@@ -1057,13 +1232,14 @@
     status.textContent = `Recherche des projets ${year} sur Wikidata… (peut prendre 10-20s)`;
     wdResultsList.innerHTML = '';
     const query = `
-      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?date WHERE {
+      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?date ?commonscat WHERE {
         ?item wdt:P31/wdt:P279* wd:Q811979 .
         ?item wdt:P625 ?coord .
         { ?item wdt:P571 ?date . } UNION { ?item wdt:P1619 ?date . }
         FILTER(YEAR(?date) = ${year})
         OPTIONAL { ?item wdt:P18 ?image . }
         OPTIONAL { ?item wdt:P84 ?architect . }
+        OPTIONAL { ?item wdt:P373 ?commonscat . }
         OPTIONAL {
           ?article schema:about ?item ;
                    schema:isPartOf <https://fr.wikipedia.org/> .
@@ -1088,6 +1264,7 @@
           coord,
           image: r.image ? r.image.value : '',
           source: r.article ? r.article.value : '',
+          commonscat: r.commonscat ? r.commonscat.value : '',
           architectLabel: r.architectLabel ? r.architectLabel.value : ''
         });
       });
@@ -1097,6 +1274,51 @@
       renderWdResults(items);
     }catch(e){
       status.textContent = 'Échec de la requête (réseau, ou requête trop lourde — réessayez).';
+    }
+  };
+
+  // -- RCE (Netherlands) search --
+  document.getElementById('wdRceSearchBtn').onclick = async ()=>{
+    const q = document.getElementById('wdRceInput').value.trim();
+    const radius = document.getElementById('wdRceRadius').value;
+    const status = document.getElementById('wdRceStatus');
+    if(!q){ status.textContent = 'Saisissez une ville néerlandaise.'; return; }
+    status.textContent = 'Localisation du lieu…';
+    wdResultsList.innerHTML = '';
+    try{
+      const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=nl&q=' + encodeURIComponent(q);
+      const geoRes = await fetch(geoUrl, {headers:{'Accept':'application/json'}});
+      const geoData = await geoRes.json();
+      if(!geoData.length){ status.textContent = 'Lieu introuvable aux Pays-Bas.'; return; }
+      const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
+      status.textContent = `Recherche des rijksmonumenten dans un rayon de ${radius} km…`;
+      const rceUrl = `https://api.rijksmonumenten.info/select/?q=*:*&fq={!geofilt}&sfield=abc_locatie&pt=${lat},${lon}&d=${radius}&rows=100&wt=json`;
+      const rceRes = await fetch(rceUrl, {headers:{'Accept':'application/json'}});
+      const rceData = await rceRes.json();
+      const docs = (rceData.response && rceData.response.docs) || [];
+      const joinField = v => Array.isArray(v) ? v.join(', ') : (v || '');
+      const items = docs.map(d=>{
+        const dlat = Array.isArray(d.abc_lat) ? d.abc_lat[0] : d.abc_lat;
+        const dlon = Array.isArray(d.abc_lon) ? d.abc_lon[0] : d.abc_lon;
+        if(dlat == null || dlon == null) return null;
+        const wikiImage = Array.isArray(d.wiki_image) ? d.wiki_image[0] : d.wiki_image;
+        const image = wikiImage
+          ? 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(wikiImage)
+          : (Array.isArray(d.wiki_thumb_url) ? d.wiki_thumb_url[0] : d.wiki_thumb_url) || '';
+        return {
+          qid: 'rce-' + (Array.isArray(d.rce_obj_nummer) ? d.rce_obj_nummer[0] : d.rce_obj_nummer),
+          label: joinField(d.rce_objectnaam) || joinField(d.rce_adres) || 'Rijksmonument',
+          coord: { lat: parseFloat(dlat), lng: parseFloat(dlon) },
+          image,
+          source: (Array.isArray(d.wiki_article_url) ? d.wiki_article_url[0] : d.wiki_article_url) || '',
+          architectLabel: joinField(d.rce_architect).replace(/;/g, ', '),
+          rce: true
+        };
+      }).filter(Boolean);
+      status.textContent = items.length ? `${items.length} rijksmonument(en) trouvé(s) autour de "${q}".` : `Aucun rijksmonument trouvé autour de "${q}" — essayez un rayon plus large.`;
+      renderWdResults(items);
+    }catch(e){
+      status.textContent = 'Échec de la requête (réseau).';
     }
   };
 
@@ -1124,6 +1346,79 @@
       }
     ];
   }
+
+  // ---- More menu / export / import ----
+  const moreBtn = document.getElementById('moreBtn');
+  const moreMenu = document.getElementById('moreMenu');
+  moreBtn.onclick = (e)=>{
+    e.stopPropagation();
+    const show = !moreMenu.classList.contains('show');
+    moreMenu.classList.toggle('show', show);
+    moreBtn.setAttribute('aria-expanded', String(show));
+  };
+  document.addEventListener('click', (e)=>{
+    if(moreMenu.classList.contains('show') && !moreMenu.contains(e.target) && e.target!==moreBtn){
+      moreMenu.classList.remove('show');
+      moreBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && moreMenu.classList.contains('show')){
+      moreMenu.classList.remove('show');
+      moreBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  document.getElementById('exportBtn').onclick = ()=>{
+    moreMenu.classList.remove('show');
+    const payload = {
+      app: 'atlas-architecture', version: 1,
+      exportedAt: new Date().toISOString(),
+      projects
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const date = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `atlas-projets-${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast(`${projects.length} projet(s) exporté(s).`);
+  };
+
+  document.getElementById('importBtn').onclick = ()=>{
+    moreMenu.classList.remove('show');
+    document.getElementById('importFile').click();
+  };
+
+  document.getElementById('importFile').onchange = async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const incoming = Array.isArray(data) ? data : (Array.isArray(data.projects) ? data.projects : null);
+      if(!incoming) throw new Error('format invalide');
+      const existingIds = new Set(projects.map(p=>p.id));
+      let added = 0;
+      incoming.forEach(p=>{
+        if(!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+        if(p.id && existingIds.has(p.id)) return;
+        projects.push({...p, id: p.id || uid()});
+        if(p.id) existingIds.add(p.id);
+        added++;
+      });
+      await persist();
+      rebuildMarkers();
+      showToast(added ? `${added} projet(s) importé(s) depuis le fichier.` : 'Aucun nouveau projet dans ce fichier (déjà présents).');
+    }catch(err){
+      showToast('Fichier illisible — export .json Atlas attendu.');
+    }
+  };
 
   // ---- Init ----
   (async function(){
