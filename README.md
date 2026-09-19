@@ -9,8 +9,11 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 ## Fonctionnalités
 
 - **Carte** — fond vectoriel OpenFreeMap (MapLibre GL), rendu net à tout niveau de zoom, regroupement des épingles selon le zoom
-- **Épingles** — blanches par défaut, rouges une fois marquées « visité » (bascule rapide au survol ou depuis la fiche du projet), déplaçables par glisser-déposer
-- **Ajout manuel** — clic sur la carte ou géocodage d'une adresse (Nominatim/OpenStreetMap)
+- **Épingles** — blanches par défaut, rouges une fois marquées « visité » (bascule rapide depuis la fiche du projet), déplaçables par glisser-déposer
+- **Création rapide** — clic sur la carte (ou géocodage d'une adresse), 5 champs essentiels : nom, architecte, année, adresse, photo d'illustration
+- **Fiche à onglets** — un seul clic sur une épingle ouvre directement la fiche complète (Infos / Photos / Plans / Commentaires), sans étape intermédiaire
+- **Recherche automatique** — bouton « Compléter automatiquement » qui va chercher sur Wikidata l'architecte, l'année, la ville, la photo et le lien source manquants, sans écraser les champs déjà renseignés
+- **Enrichissement libre** — photos multiples, plans/documents (libellé + lien), commentaires horodatés (journal cumulatif), notes, ville, lien source
 - **Recherche** — par nom, architecte ou ville, navigable au clavier
 - **Import automatique** :
   - **Wikidata** — par architecte, par lieu (rayon réglable), ou par année d'achèvement/ouverture

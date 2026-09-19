@@ -1,9 +1,19 @@
 # Changelog
 
+## 1.3.0
+### Ajouté
+- Champs essentiels dès la création : nom, architecte, année, adresse, photo d'illustration.
+- Enrichissement structuré : photos multiples, plans/documents, commentaires horodatés (journal cumulatif).
+- Recherche automatique (« Compléter automatiquement ») : préremplissage des champs vides depuis Wikidata, sans écraser les données déjà saisies.
+- Fiche à onglets (Infos / Photos / Plans / Commentaires) accessible en un seul clic sur l'épingle.
+
+### Changé
+- Suppression de l'aperçu au survol des épingles, qui exigeait un double tap sur mobile pour atteindre la fiche complète — un clic ou tap suffit désormais.
+
 ## 1.2.0
 ### Ajouté
 - Menu « ⋯ » avec export et import des données au format JSON (sauvegarde avant mise à jour de l'app).
-- Statut « visité » par épingle : bascule rapide au survol, case dans la fiche d'édition, couleur dédiée sur la carte.
+- Statut « visité » par épingle : bascule rapide, case dans la fiche d'édition, couleur dédiée sur la carte.
 - Bannière du dépôt refondue avec des références au dessin d'architecture (élévation stylisée, ligne de cote, épingle).
 
 ### Changé

@@ -79,7 +79,9 @@
     padding-top:env(safe-area-inset-top, 0px);
   }
   .panel{
+    background:var(--ink-2);
     background:color-mix(in srgb, var(--ink) 78%, transparent);
+    border:1px solid var(--grid);
     border:1px solid color-mix(in srgb, var(--blueprint) 20%, transparent);
     border-radius:var(--radius-lg);
     backdrop-filter:blur(20px) saturate(1.6);
@@ -142,6 +144,7 @@
   #wdBtn{
     min-height:44px;
     padding:0 20px;
+    background:var(--ink-2);
     background:color-mix(in srgb, var(--ink-2) 88%, transparent);
     color:var(--blueprint);
     border:1px solid var(--blueprint-dim); border-radius:var(--radius-full);
@@ -158,6 +161,7 @@
   .more-wrap{position:relative; pointer-events:auto;}
   #moreBtn{
     min-height:44px; min-width:44px; padding:0 14px;
+    background:var(--ink-2);
     background:color-mix(in srgb, var(--ink-2) 88%, transparent); color:var(--blueprint);
     border:1px solid var(--blueprint-dim); border-radius:var(--radius-full);
     cursor:pointer; display:flex; align-items:center; justify-content:center;
@@ -167,6 +171,7 @@
   #moreBtn:hover{background:var(--grid);}
   #moreMenu{
     display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:1100;
+    background:var(--ink-2);
     background:color-mix(in srgb, var(--ink) 94%, transparent); border:1px solid var(--grid); border-radius:var(--radius-md);
     min-width:240px; overflow:hidden; box-shadow:var(--shadow-md);
   }
@@ -348,9 +353,38 @@
   .hint{
     font-size:11px; color:#6E6E6E; line-height:1.5; margin-top:-6px; margin-bottom:14px;
   }
-  #f-gallery{display:flex; flex-wrap:wrap; gap:6px;}
-  #f-gallery a{display:block; width:52px; height:52px; border-radius:var(--radius-xs); overflow:hidden; border:1px solid var(--paper-dim);}
-  #f-gallery img{width:100%; height:100%; object-fit:cover; display:block;}
+  .chip-list{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
+  .chip-list:empty{display:none;}
+  .photo-chip{position:relative; width:56px; height:56px; border-radius:var(--radius-xs); overflow:hidden; border:1px solid var(--paper-dim);}
+  .photo-chip img{width:100%; height:100%; object-fit:cover; display:block;}
+  .photo-chip button{
+    position:absolute; top:2px; right:2px; width:18px; height:18px; min-height:0;
+    background:rgba(0,0,0,0.6); color:#fff; border:none; border-radius:var(--radius-full);
+    font-size:12px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .link-list{display:flex; flex-direction:column; gap:6px; margin-bottom:8px;}
+  .link-list:empty{display:none;}
+  .link-row{
+    display:flex; align-items:center; gap:8px; padding:7px 10px;
+    background:#F3F2EE; border-radius:var(--radius-xs); font-size:12px;
+  }
+  .link-row a{color:var(--copper); font-weight:600; text-decoration:none; flex-shrink:0;}
+  .link-row span{flex:1; color:#6E6E6E; font-family:'IBM Plex Mono'; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .link-row button{
+    background:none; border:none; color:#6E6E6E; cursor:pointer; font-size:15px; line-height:1; min-height:0; padding:0 2px;
+  }
+  .comment-list{display:flex; flex-direction:column; gap:8px; margin-bottom:8px;}
+  .comment-list:empty{display:none;}
+  .comment-row{
+    padding:8px 10px; background:#F3F2EE; border-radius:var(--radius-xs);
+    display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
+  }
+  .comment-row .c-text{font-size:12px; color:var(--text-on-paper); line-height:1.4;}
+  .comment-row .c-date{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E; margin-top:3px; display:block;}
+  .comment-row button{
+    background:none; border:none; color:#6E6E6E; cursor:pointer; font-size:15px; line-height:1; min-height:0; padding:0 2px; flex-shrink:0;
+  }
+  #editOnlySections{display:none;}
 
   /* Empty state toast */
   #toast{
@@ -411,12 +445,12 @@
     color:#6E6E6E; margin-bottom:3px;
   }
   .wd-tabs{display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--paper-dim);}
-  .wd-tab{
-    padding:10px 4px; margin-right:20px; background:none; border:none; cursor:pointer;
+  .wd-tab, .m-tab{
+    padding:10px 4px; margin-right:20px; min-height:44px; background:none; border:none; cursor:pointer;
     font-family:'IBM Plex Mono'; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;
     color:#6E6E6E; border-bottom:2px solid transparent;
   }
-  .wd-tab.active{color:var(--text-on-paper); border-bottom-color:var(--copper);}
+  .wd-tab.active, .m-tab.active{color:var(--text-on-paper); border-bottom-color:var(--copper);}
   #wdModal .wd-body{padding:16px 20px; overflow-y:auto; flex:1;}
   .wd-row{display:flex; gap:8px; margin-bottom:10px;}
   .wd-row input, .wd-row select{
@@ -507,47 +541,98 @@
       </div>
       <button class="m-close" id="modalClose" aria-label="Fermer">×</button>
     </div>
+
+    <div class="wd-tabs" id="modalTabs" style="display:none;">
+      <button class="m-tab active" data-mtab="infos">Infos</button>
+      <button class="m-tab" data-mtab="photos">Photos</button>
+      <button class="m-tab" data-mtab="plans">Plans</button>
+      <button class="m-tab" data-mtab="comments">Commentaires</button>
+    </div>
+
     <div class="m-body">
-      <div class="field">
-        <label>Nom du bâtiment / projet</label>
-        <input id="f-title" type="text" placeholder="ex. Musée des Confluences" />
-      </div>
-      <label class="field-checkbox">
-        <input id="f-visited" type="checkbox" />
-        <span>Visité</span>
-      </label>
-      <div class="field-row">
+      <div id="m-pane-infos">
         <div class="field">
-          <label>Architecte(s)</label>
-          <input id="f-architect" type="text" placeholder="ex. Coop Himmelb(l)au" />
+          <label>Nom du bâtiment / projet</label>
+          <input id="f-title" type="text" placeholder="ex. Musée des Confluences" />
+        </div>
+        <div class="field-row" style="align-items:center;">
+          <button class="wd-btn" id="autofillBtn" type="button">🔍 Compléter automatiquement</button>
+        </div>
+        <div class="geocode-status" id="autofillStatus" style="margin-bottom:12px;"></div>
+        <div class="field-row">
+          <div class="field">
+            <label>Architecte(s)</label>
+            <input id="f-architect" type="text" placeholder="ex. Coop Himmelb(l)au" />
+          </div>
+          <div class="field" style="max-width:130px; flex:none;">
+            <label>Année</label>
+            <input id="f-year" type="text" placeholder="ex. 2015" />
+          </div>
         </div>
         <div class="field">
-          <label>Ville / pays</label>
-          <input id="f-city" type="text" placeholder="ex. Lyon, France" />
+          <label>Adresse (pour géocodage)</label>
+          <input id="f-address" type="text" placeholder="ex. 86 Quai Perrache, 69002 Lyon" />
+          <button class="geocode-btn" id="geocodeBtn">Localiser cette adresse ↦</button>
+          <div class="geocode-status" id="geocodeStatus"></div>
+        </div>
+        <div class="hint" id="createHint">Ou cliquez directement sur la carte pour placer l'épingle. Vous pourrez enrichir ville, photos, plans et commentaires après coup, en recliquant sur l'épingle.</div>
+
+        <div id="editOnlySections">
+          <label class="field-checkbox">
+            <input id="f-visited" type="checkbox" />
+            <span>Visité</span>
+          </label>
+          <div class="field">
+            <label>Ville / pays</label>
+            <input id="f-city" type="text" placeholder="ex. Lyon, France" />
+          </div>
+          <div class="field">
+            <label>Lien vers l'article (worldarchitecture.org)</label>
+            <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <textarea id="f-notes" placeholder="Notes libres…"></textarea>
+          </div>
         </div>
       </div>
-      <div class="field">
-        <label>Adresse (pour géocodage)</label>
-        <input id="f-address" type="text" placeholder="ex. 86 Quai Perrache, 69002 Lyon" />
-        <button class="geocode-btn" id="geocodeBtn">Localiser cette adresse ↦</button>
-        <div class="geocode-status" id="geocodeStatus"></div>
+
+      <div id="m-pane-photos" style="display:none;">
+        <div class="field">
+          <label>Photo d'illustration (URL)</label>
+          <input id="f-photo" type="text" placeholder="https://…jpg" />
+        </div>
+        <div class="field">
+          <label>Photos supplémentaires</label>
+          <div id="f-photos-list" class="chip-list"></div>
+          <div class="field-row">
+            <input id="f-photo-input" type="text" placeholder="URL d'une photo…" />
+            <button class="wd-btn" id="f-photo-add" type="button">Ajouter</button>
+          </div>
+        </div>
       </div>
-      <div class="hint">Ou cliquez directement sur la carte pour placer l'épingle, puis ajustez-la par glisser-déposer.</div>
-      <div class="field">
-        <label>URL de l'image (aperçu au survol)</label>
-        <input id="f-image" type="text" placeholder="https://worldarchitecture.org/…jpg" />
+
+      <div id="m-pane-plans" style="display:none;">
+        <div class="field">
+          <label>Plans / documents</label>
+          <div id="f-plans-list" class="link-list"></div>
+          <div class="field-row">
+            <input id="f-plan-label" type="text" placeholder="Libellé, ex. Plan RDC" style="max-width:130px; flex:none;" />
+            <input id="f-plan-url" type="text" placeholder="URL du plan ou du document…" />
+            <button class="wd-btn" id="f-plan-add" type="button">Ajouter</button>
+          </div>
+        </div>
       </div>
-      <div class="field">
-        <label>Lien vers l'article (worldarchitecture.org)</label>
-        <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <textarea id="f-notes" placeholder="Notes libres…"></textarea>
-      </div>
-      <div class="field" id="f-gallery-wrap" style="display:none;">
-        <label>Photos supplémentaires (Wikimedia Commons)</label>
-        <div id="f-gallery"></div>
+
+      <div id="m-pane-comments" style="display:none;">
+        <div class="field">
+          <label>Commentaires</label>
+          <div id="f-comments-list" class="comment-list"></div>
+          <div class="field-row">
+            <input id="f-comment-input" type="text" placeholder="Ajouter un commentaire…" />
+            <button class="wd-btn" id="f-comment-add" type="button">Ajouter</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="m-actions">
@@ -685,16 +770,18 @@
 
   function popupHtml(p){
     const img = p.image ? `<img class="ac-img" src="${escapeHtml(p.image)}" onerror="this.style.display='none'"/>` : '';
-    const meta = [p.architect, p.city].filter(Boolean).join(' · ');
+    const meta = [p.architect, p.year, p.city].filter(Boolean).join(' · ');
     const link = p.source ? `<a class="ac-link" href="${escapeHtml(p.source)}" target="_blank" rel="noopener">Voir l'article ↗</a>` : '';
     const structuraeUrl = 'https://structurae.net/en/search?query=' + encodeURIComponent(p.title||'');
     const structuraeLink = `<a class="ac-link ac-link-secondary" href="${structuraeUrl}" target="_blank" rel="noopener">Structurae ↗</a>`;
     const galleryBadge = (p.images && p.images.length > 1) ? `<span class="ac-gallery-badge">+${p.images.length - 1} photo${p.images.length > 2 ? 's' : ''}</span>` : '';
+    const plansBadge = (p.plans && p.plans.length) ? `<span class="ac-gallery-badge">${p.plans.length} plan${p.plans.length > 1 ? 's' : ''}</span>` : '';
+    const commentsBadge = (p.comments && p.comments.length) ? `<span class="ac-gallery-badge">${p.comments.length} commentaire${p.comments.length > 1 ? 's' : ''}</span>` : '';
     const visitedBadge = p.visited ? `<span class="ac-visited-badge">✓ Visité</span>` : '';
     return `<div>${img}<div class="ac-body">
       <div class="ac-title">${escapeHtml(p.title||'Sans titre')}</div>
       ${meta ? `<div class="ac-meta">${escapeHtml(meta)}</div>` : ''}
-      <div class="ac-links">${link}${structuraeLink}${galleryBadge}${visitedBadge}</div>
+      <div class="ac-links">${link}${structuraeLink}${galleryBadge}${plansBadge}${commentsBadge}${visitedBadge}</div>
       <button type="button" class="ac-visited-toggle" data-id="${escapeHtml(p.id)}">${p.visited ? 'Marquer non visité' : '✓ Marquer comme visité'}</button>
     </div></div>`;
   }
@@ -705,8 +792,6 @@
 
   function addMarkerToMap(p){
     const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable:true});
-    m.bindPopup(popupHtml(p), {className:'archive-card', closeButton:true});
-    m.on('mouseover', ()=> m.openPopup());
     m.on('click', ()=> openEditModal(p.id));
     m.on('dragend', (e)=>{
       const ll = e.target.getLatLng();
@@ -717,20 +802,6 @@
     clusterGroup.addLayer(m);
   }
 
-  document.addEventListener('click', (e)=>{
-    const btn = e.target.closest('.ac-visited-toggle');
-    if(!btn) return;
-    const p = projects.find(x=>x.id===btn.dataset.id);
-    if(!p) return;
-    p.visited = !p.visited;
-    persist();
-    const m = markers[p.id];
-    if(m){
-      m.setIcon(pinDivIcon(p.visited));
-      m.setPopupContent(popupHtml(p));
-    }
-  });
-
   function rebuildMarkers(){
     clusterGroup.clearLayers();
     markers = {};
@@ -739,10 +810,22 @@
 
   function initMap(){
     map = L.map('map', {zoomControl:true, worldCopyJump:true, minZoom:1}).setView([46.6, 2.4], 5);
-    L.maplibreGL({
-      style: 'https://tiles.openfreemap.org/styles/dark',
-      attribution: '&copy; OpenFreeMap &copy; OpenStreetMap contributors'
-    }).addTo(map);
+    let vectorBasemapOk = false;
+    try{
+      if(typeof L.maplibreGL === 'function'){
+        L.maplibreGL({
+          style: 'https://tiles.openfreemap.org/styles/dark',
+          attribution: '&copy; OpenFreeMap &copy; OpenStreetMap contributors'
+        }).addTo(map);
+        vectorBasemapOk = true;
+      }
+    }catch(e){ vectorBasemapOk = false; }
+    if(!vectorBasemapOk){
+      // Repli si MapLibre GL n'a pas pu charger (script bloqué, réseau, etc.)
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri', maxZoom:19, maxNativeZoom:16
+      }).addTo(map);
+    }
 
     clusterGroup = L.markerClusterGroup({
       iconCreateFunction: function(cluster){
@@ -796,20 +879,150 @@
   const modalOverlay = document.getElementById('modalOverlay');
   const fTitle = document.getElementById('f-title');
   const fArchitect = document.getElementById('f-architect');
+  const fYear = document.getElementById('f-year');
   const fCity = document.getElementById('f-city');
   const fAddress = document.getElementById('f-address');
-  const fImage = document.getElementById('f-image');
+  const fPhoto = document.getElementById('f-photo');
   const fSource = document.getElementById('f-source');
   const fNotes = document.getElementById('f-notes');
   const fVisited = document.getElementById('f-visited');
   const geocodeStatus = document.getElementById('geocodeStatus');
+  const editOnlySections = document.getElementById('editOnlySections');
+  const createHint = document.getElementById('createHint');
+
+  let editPhotos = [];   // photos supplémentaires (hors couverture)
+  let editPlans = [];
+  let editComments = [];
+
+  function renderPhotosList(){
+    const el = document.getElementById('f-photos-list');
+    el.innerHTML = editPhotos.map((u,i)=>`
+      <div class="photo-chip">
+        <img src="${escapeHtml(u)}" onerror="this.closest('.photo-chip').style.opacity=0.3" />
+        <button type="button" data-i="${i}" aria-label="Retirer cette photo">×</button>
+      </div>`).join('');
+    el.querySelectorAll('button[data-i]').forEach(btn=>{
+      btn.onclick = ()=>{ editPhotos.splice(Number(btn.dataset.i),1); renderPhotosList(); };
+    });
+  }
+  function renderPlansList(){
+    const el = document.getElementById('f-plans-list');
+    el.innerHTML = editPlans.map((pl,i)=>`
+      <div class="link-row">
+        <a href="${escapeHtml(pl.url)}" target="_blank" rel="noopener">${escapeHtml(pl.label || 'Plan')}</a>
+        <span>${escapeHtml(pl.url)}</span>
+        <button type="button" data-i="${i}" aria-label="Retirer ce plan">×</button>
+      </div>`).join('');
+    el.querySelectorAll('button[data-i]').forEach(btn=>{
+      btn.onclick = ()=>{ editPlans.splice(Number(btn.dataset.i),1); renderPlansList(); };
+    });
+  }
+  function renderCommentsList(){
+    const el = document.getElementById('f-comments-list');
+    el.innerHTML = editComments.map((c,i)=>`
+      <div class="comment-row">
+        <div><div class="c-text">${escapeHtml(c.text)}</div><span class="c-date">${escapeHtml(c.date)}</span></div>
+        <button type="button" data-i="${i}" aria-label="Supprimer ce commentaire">×</button>
+      </div>`).join('');
+    el.querySelectorAll('button[data-i]').forEach(btn=>{
+      btn.onclick = ()=>{ editComments.splice(Number(btn.dataset.i),1); renderCommentsList(); };
+    });
+  }
+
+  document.getElementById('f-photo-add').onclick = ()=>{
+    const input = document.getElementById('f-photo-input');
+    const url = input.value.trim();
+    if(!url) return;
+    editPhotos.push(url);
+    input.value = '';
+    renderPhotosList();
+  };
+  document.getElementById('f-plan-add').onclick = ()=>{
+    const urlInput = document.getElementById('f-plan-url');
+    const labelInput = document.getElementById('f-plan-label');
+    const url = urlInput.value.trim();
+    if(!url) return;
+    editPlans.push({label: labelInput.value.trim(), url});
+    urlInput.value = ''; labelInput.value = '';
+    renderPlansList();
+  };
+  document.getElementById('f-comment-add').onclick = ()=>{
+    const input = document.getElementById('f-comment-input');
+    const text = input.value.trim();
+    if(!text) return;
+    const date = new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'2-digit', year:'numeric'});
+    editComments.push({text, date});
+    input.value = '';
+    renderCommentsList();
+  };
+
+  const modalTabs = document.getElementById('modalTabs');
+  const autofillStatus = document.getElementById('autofillStatus');
+
+  function switchModalTab(tabName){
+    modalTabs.querySelectorAll('.m-tab').forEach(t=> t.classList.toggle('active', t.dataset.mtab===tabName));
+    ['infos','photos','plans','comments'].forEach(name=>{
+      document.getElementById('m-pane-'+name).style.display = (name===tabName) ? '' : 'none';
+    });
+  }
+  modalTabs.querySelectorAll('.m-tab').forEach(tab=>{
+    tab.onclick = ()=> switchModalTab(tab.dataset.mtab);
+  });
+
+  document.getElementById('autofillBtn').onclick = async ()=>{
+    const title = fTitle.value.trim();
+    if(!title){ autofillStatus.textContent = "Saisissez d'abord un nom de bâtiment."; return; }
+    autofillStatus.textContent = 'Recherche sur Wikidata…';
+    try{
+      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(title)}&language=fr&format=json&origin=*&type=item&limit=1`;
+      const res = await fetch(searchUrl);
+      const data = await res.json();
+      if(!data.search || !data.search.length){
+        autofillStatus.textContent = 'Aucun résultat Wikidata pour ce nom.';
+        return;
+      }
+      const qid = data.search[0].id;
+      const query = `
+        SELECT ?image ?commonscat ?date ?architect ?architectLabel ?city ?cityLabel ?article WHERE {
+          OPTIONAL { wd:${qid} wdt:P18 ?image . }
+          OPTIONAL { wd:${qid} wdt:P373 ?commonscat . }
+          OPTIONAL { wd:${qid} wdt:P571 ?date . }
+          OPTIONAL { wd:${qid} wdt:P84 ?architect . }
+          OPTIONAL { wd:${qid} wdt:P131 ?city . }
+          OPTIONAL { ?article schema:about wd:${qid} ; schema:isPartOf <https://fr.wikipedia.org/> . }
+          SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en". }
+        }
+        LIMIT 1
+      `;
+      const rows = await sparqlQuery(query);
+      if(!rows.length){ autofillStatus.textContent = 'Fiche Wikidata trouvée, mais sans détails exploitables.'; return; }
+      const r = rows[0];
+      const filled = [];
+      if(!fArchitect.value.trim() && r.architectLabel){ fArchitect.value = r.architectLabel.value; filled.push('architecte'); }
+      if(!fYear.value.trim() && r.date){ fYear.value = r.date.value.slice(0,4); filled.push('année'); }
+      if(!fCity.value.trim() && r.cityLabel){ fCity.value = r.cityLabel.value; filled.push('ville'); }
+      if(!fPhoto.value.trim() && r.image){ fPhoto.value = r.image.value; filled.push('photo'); }
+      if(!fSource.value.trim() && r.article){ fSource.value = r.article.value; filled.push('source'); }
+      if(r.commonscat){
+        (await fetchCommonsGallery(r.commonscat.value)).forEach(u=>{
+          if(u!==fPhoto.value.trim() && !editPhotos.includes(u)){ editPhotos.push(u); filled.push('photos supplémentaires'); }
+        });
+        renderPhotosList();
+      }
+      autofillStatus.textContent = filled.length
+        ? `Complété depuis Wikidata : ${[...new Set(filled)].join(', ')}. Vérifiez avant d'enregistrer.`
+        : 'Fiche Wikidata trouvée, mais tous les champs étaient déjà renseignés.';
+    }catch(e){
+      autofillStatus.textContent = 'Échec de la recherche (réseau).';
+    }
+  };
 
   function clearForm(){
-    fTitle.value=''; fArchitect.value=''; fCity.value=''; fAddress.value='';
-    fImage.value=''; fSource.value=''; fNotes.value=''; fVisited.checked = false;
-    geocodeStatus.textContent='';
-    document.getElementById('f-gallery-wrap').style.display = 'none';
-    document.getElementById('f-gallery').innerHTML = '';
+    fTitle.value=''; fArchitect.value=''; fYear.value=''; fCity.value=''; fAddress.value=''; fPhoto.value='';
+    fSource.value=''; fNotes.value=''; fVisited.checked = false;
+    geocodeStatus.textContent=''; autofillStatus.textContent='';
+    editPhotos = []; editPlans = []; editComments = [];
+    renderPhotosList(); renderPlansList(); renderCommentsList();
   }
 
   function openCreateModal(latlng){
@@ -818,6 +1031,13 @@
     document.getElementById('modalEyebrow').textContent = 'Nouveau relevé';
     document.getElementById('modalTitle').textContent = 'Ajouter un projet';
     document.getElementById('deleteBtn').style.display = 'none';
+    editOnlySections.style.display = 'none';
+    createHint.style.display = '';
+    modalTabs.style.display = 'none';
+    document.getElementById('m-pane-photos').style.display = 'none';
+    document.getElementById('m-pane-plans').style.display = 'none';
+    document.getElementById('m-pane-comments').style.display = 'none';
+    document.getElementById('m-pane-infos').style.display = '';
     pendingLatLng = latlng || null;
     modalOverlay.classList.add('show');
     fTitle.focus();
@@ -827,22 +1047,23 @@
     const p = projects.find(x=>x.id===id);
     if(!p) return;
     editingId = id;
-    fTitle.value = p.title||''; fArchitect.value = p.architect||''; fCity.value = p.city||'';
-    fAddress.value = p.address||''; fImage.value = p.image||''; fSource.value = p.source||'';
+    fTitle.value = p.title||''; fArchitect.value = p.architect||''; fYear.value = p.year||'';
+    fCity.value = p.city||''; fAddress.value = p.address||''; fSource.value = p.source||'';
     fNotes.value = p.notes||''; fVisited.checked = !!p.visited;
-    geocodeStatus.textContent='';
-    const galleryWrap = document.getElementById('f-gallery-wrap');
-    const gallery = document.getElementById('f-gallery');
-    if(p.images && p.images.length > 1){
-      gallery.innerHTML = p.images.map(u=>`<a href="${escapeHtml(u)}" target="_blank" rel="noopener"><img src="${escapeHtml(u)}" onerror="this.parentElement.style.display='none'"/></a>`).join('');
-      galleryWrap.style.display = '';
-    }else{
-      gallery.innerHTML = '';
-      galleryWrap.style.display = 'none';
-    }
+    geocodeStatus.textContent=''; autofillStatus.textContent='';
+    const allImages = (p.images && p.images.length) ? p.images.slice() : (p.image ? [p.image] : []);
+    fPhoto.value = allImages[0] || '';
+    editPhotos = allImages.slice(1);
+    editPlans = p.plans ? p.plans.slice() : [];
+    editComments = p.comments ? p.comments.slice() : [];
+    renderPhotosList(); renderPlansList(); renderCommentsList();
     document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('modalTitle').textContent = p.title || 'Projet';
     document.getElementById('deleteBtn').style.display = 'inline';
+    editOnlySections.style.display = '';
+    createHint.style.display = 'none';
+    modalTabs.style.display = '';
+    switchModalTab('infos');
     modalOverlay.classList.add('show');
   }
 
@@ -876,12 +1097,16 @@
   document.getElementById('saveBtn').onclick = async ()=>{
     const title = fTitle.value.trim();
     if(!title){ showToast('Le nom du projet est requis.'); fTitle.focus(); return; }
+    const cover = fPhoto.value.trim();
+    const allImages = [cover, ...editPhotos].filter(Boolean);
 
     if(editingId){
       const p = projects.find(x=>x.id===editingId);
-      p.title=title; p.architect=fArchitect.value.trim(); p.city=fCity.value.trim();
-      p.address=fAddress.value.trim(); p.image=fImage.value.trim(); p.source=fSource.value.trim();
+      p.title=title; p.architect=fArchitect.value.trim(); p.year=fYear.value.trim(); p.city=fCity.value.trim();
+      p.address=fAddress.value.trim(); p.source=fSource.value.trim();
       p.notes=fNotes.value.trim(); p.visited=fVisited.checked;
+      p.images = allImages; p.image = allImages[0]||'';
+      p.plans = editPlans.slice(); p.comments = editComments.slice();
       if(pendingLatLng){ p.lat=pendingLatLng.lat; p.lng=pendingLatLng.lng; }
       await persist();
       rebuildMarkers();
@@ -892,16 +1117,16 @@
         return;
       }
       const p = {
-        id: uid(), title, architect: fArchitect.value.trim(), city: fCity.value.trim(),
+        id: uid(), title, architect: fArchitect.value.trim(), year: fYear.value.trim(), city: '',
         address: fAddress.value.trim(), lat: pendingLatLng.lat, lng: pendingLatLng.lng,
-        image: fImage.value.trim(), source: fSource.value.trim(), notes: fNotes.value.trim(),
-        visited: fVisited.checked
+        image: allImages[0]||'', images: allImages, plans: [], comments: [],
+        source: '', notes: '', visited: false
       };
       projects.push(p);
       await persist();
       addMarkerToMap(p);
       map.setView([p.lat, p.lng], Math.max(map.getZoom(), 12));
-      showToast('Projet ajouté.');
+      showToast('Projet ajouté — cliquez sur l\'épingle pour enrichir ville, plans, commentaires…');
     }
     closeModal();
   };
@@ -1064,8 +1289,11 @@
 
   async function fetchCommonsGallery(commonscat){
     try{
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(), 5000);
       const url = `https://commons.wikimedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent('Category:'+commonscat)}&cmtype=file&cmlimit=8&format=json&origin=*`;
-      const res = await fetch(url);
+      const res = await fetch(url, {signal: controller.signal});
+      clearTimeout(timer);
       const data = await res.json();
       const members = (data.query && data.query.categorymembers) || [];
       return members.map(m => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(m.title.replace(/^File:/,'')));
@@ -1073,33 +1301,43 @@
   }
 
   wdImportBtn.onclick = async ()=>{
-    let added = 0;
-    let enrichedCount = 0;
-    for(const qid of Array.from(wdSelected)){
-      const already = projects.some(p=> p.wikidataId===qid || p.rceId===qid);
-      if(already) continue;
-      const it = wdResultsData[qid];
-      if(!it || !it.coord) continue;
-      let images = it.image ? [it.image] : [];
-      if(!it.rce && it.commonscat && enrichedCount < 50){
-        enrichedCount++;
-        (await fetchCommonsGallery(it.commonscat)).forEach(u=>{ if(!images.includes(u)) images.push(u); });
+    wdImportBtn.disabled = true;
+    const originalLabel = wdImportBtn.textContent;
+    wdImportBtn.textContent = 'Import en cours…';
+    try{
+      let added = 0;
+      let enrichedCount = 0;
+      for(const qid of Array.from(wdSelected)){
+        const already = projects.some(p=> p.wikidataId===qid || p.rceId===qid);
+        if(already) continue;
+        const it = wdResultsData[qid];
+        if(!it || !it.coord) continue;
+        let images = it.image ? [it.image] : [];
+        if(!it.rce && it.commonscat && enrichedCount < 50){
+          enrichedCount++;
+          (await fetchCommonsGallery(it.commonscat)).forEach(u=>{ if(!images.includes(u)) images.push(u); });
+        }
+        const project = {
+          id: uid(), title: it.label, architect: it.architectLabel||'', year: it.year||'', city:'',
+          address:'', lat: it.coord.lat, lng: it.coord.lng,
+          image: images[0]||'', source: it.source || (it.rce ? '' : ('https://www.wikidata.org/wiki/'+qid)),
+          notes: it.rce ? 'Importé depuis le registre RCE (Pays-Bas).' : 'Importé depuis Wikidata.',
+          images
+        };
+        if(it.rce) project.rceId = qid; else project.wikidataId = qid;
+        projects.push(project);
+        added++;
       }
-      const project = {
-        id: uid(), title: it.label, architect: it.architectLabel||'', city:'',
-        address:'', lat: it.coord.lat, lng: it.coord.lng,
-        image: images[0]||'', source: it.source || (it.rce ? '' : ('https://www.wikidata.org/wiki/'+qid)),
-        notes: it.rce ? 'Importé depuis le registre RCE (Pays-Bas).' : 'Importé depuis Wikidata.',
-        images
-      };
-      if(it.rce) project.rceId = qid; else project.wikidataId = qid;
-      projects.push(project);
-      added++;
+      await persist();
+      rebuildMarkers();
+      wdOverlay.classList.remove('show');
+      showToast(added ? `${added} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
+    }catch(err){
+      showToast("Échec de l'import — réessayez.");
+    }finally{
+      wdImportBtn.textContent = originalLabel;
+      wdImportBtn.disabled = wdSelected.size === 0;
     }
-    await persist();
-    rebuildMarkers();
-    wdOverlay.classList.remove('show');
-    showToast(added ? `${added} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
   };
 
   // -- architect search --
@@ -1136,11 +1374,12 @@
     status.textContent = `Chargement des bâtiments de ${label}…`;
     wdResultsList.innerHTML = '';
     const query = `
-      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?commonscat WHERE {
+      SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?commonscat ?date WHERE {
         ?item wdt:P84 wd:${qid} .
         ?item wdt:P625 ?coord .
         OPTIONAL { ?item wdt:P18 ?image . }
         OPTIONAL { ?item wdt:P373 ?commonscat . }
+        OPTIONAL { ?item wdt:P571 ?date . }
         OPTIONAL {
           ?article schema:about ?item ;
                    schema:isPartOf <https://fr.wikipedia.org/> .
@@ -1160,6 +1399,7 @@
           image: r.image ? r.image.value : '',
           source: r.article ? r.article.value : '',
           commonscat: r.commonscat ? r.commonscat.value : '',
+          year: r.date ? r.date.value.slice(0,4) : '',
           architectLabel: label
         };
       }).filter(it=>it.coord);
@@ -1186,7 +1426,7 @@
       const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
       status.textContent = `Recherche des bâtiments dans un rayon de ${radius} km…`;
       const query = `
-        SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?commonscat WHERE {
+        SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?commonscat ?date WHERE {
           SERVICE wikibase:around {
             ?item wdt:P625 ?coord .
             bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -1196,6 +1436,7 @@
           ?item wdt:P18 ?image .
           OPTIONAL { ?item wdt:P84 ?architect . }
           OPTIONAL { ?item wdt:P373 ?commonscat . }
+          OPTIONAL { ?item wdt:P571 ?date . }
           OPTIONAL {
             ?article schema:about ?item ;
                      schema:isPartOf <https://fr.wikipedia.org/> .
@@ -1214,6 +1455,7 @@
           image: r.image ? r.image.value : '',
           source: r.article ? r.article.value : '',
           commonscat: r.commonscat ? r.commonscat.value : '',
+          year: r.date ? r.date.value.slice(0,4) : '',
           architectLabel: r.architectLabel ? r.architectLabel.value : ''
         };
       }).filter(it=>it.coord);
@@ -1265,6 +1507,7 @@
           image: r.image ? r.image.value : '',
           source: r.article ? r.article.value : '',
           commonscat: r.commonscat ? r.commonscat.value : '',
+          year: String(year),
           architectLabel: r.architectLabel ? r.architectLabel.value : ''
         });
       });
@@ -1312,6 +1555,7 @@
           image,
           source: (Array.isArray(d.wiki_article_url) ? d.wiki_article_url[0] : d.wiki_article_url) || '',
           architectLabel: joinField(d.rce_architect).replace(/;/g, ', '),
+          year: joinField(d.rce_bouwjaar_tekst),
           rce: true
         };
       }).filter(Boolean);
@@ -1422,14 +1666,22 @@
 
   // ---- Init ----
   (async function(){
-    initMap();
-    await initStorage();
-    seedIfEmpty();
-    await persist();
-    rebuildMarkers();
-    if(projects.length){
-      const bounds = L.latLngBounds(projects.map(p=>[p.lat,p.lng]));
-      map.fitBounds(bounds.pad(0.4));
+    try{
+      initMap();
+      await initStorage();
+      seedIfEmpty();
+      await persist();
+      rebuildMarkers();
+      if(projects.length){
+        const bounds = L.latLngBounds(projects.map(p=>[p.lat,p.lng]));
+        map.fitBounds(bounds.pad(0.4));
+      }
+    }catch(err){
+      document.getElementById('map').innerHTML =
+        '<div style="color:#EDEDEA;font-family:IBM Plex Mono,monospace;padding:40px;text-align:center;">'
+        + "Le chargement de la carte a échoué (ressource externe indisponible dans cet environnement). "
+        + "Essayez d'ouvrir ce fichier directement dans un navigateur plutôt que dans cet aperçu.<br><br>"
+        + '<span style="opacity:0.6;font-size:11px;">' + escapeHtml(String(err && err.message || err)) + '</span></div>';
     }
   })();
 })();
