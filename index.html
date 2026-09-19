@@ -1297,7 +1297,7 @@
     const originalLabel = wdImportBtn.textContent;
     wdImportBtn.textContent = 'Import en cours…';
     try{
-      let added = 0;
+      const newlyAdded = [];
       for(const qid of Array.from(wdSelected)){
         const already = projects.some(p=> p.wikidataId===qid);
         if(already) continue;
@@ -1312,12 +1312,15 @@
           wikidataId: qid
         };
         projects.push(project);
-        added++;
+        newlyAdded.push(project);
       }
       await persist();
-      rebuildMarkers();
+      // Ajout incrémental : seules les nouvelles épingles sont créées,
+      // pas de reconstruction complète de la carte (peut devenir lent
+      // à mesure que le nombre de projets déjà sur la carte augmente).
+      newlyAdded.forEach(addMarkerToMap);
       wdOverlay.classList.remove('show');
-      showToast(added ? `${added} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
+      showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
     }catch(err){
       showToast("Échec de l'import — réessayez.");
     }finally{
@@ -1598,17 +1601,18 @@
       const incoming = Array.isArray(data) ? data : (Array.isArray(data.projects) ? data.projects : null);
       if(!incoming) throw new Error('format invalide');
       const existingIds = new Set(projects.map(p=>p.id));
-      let added = 0;
+      const newlyAdded = [];
       incoming.forEach(p=>{
         if(!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
         if(p.id && existingIds.has(p.id)) return;
-        projects.push({...p, id: p.id || uid()});
+        const project = {...p, id: p.id || uid()};
+        projects.push(project);
         if(p.id) existingIds.add(p.id);
-        added++;
+        newlyAdded.push(project);
       });
       await persist();
-      rebuildMarkers();
-      showToast(added ? `${added} projet(s) importé(s) depuis le fichier.` : 'Aucun nouveau projet dans ce fichier (déjà présents).');
+      newlyAdded.forEach(addMarkerToMap);
+      showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s) depuis le fichier.` : 'Aucun nouveau projet dans ce fichier (déjà présents).');
     }catch(err){
       showToast('Fichier illisible — export .json Atlas attendu.');
     }
