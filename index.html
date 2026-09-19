@@ -185,8 +185,9 @@
   #moreMenu button:last-of-type{border-bottom:none;}
   #moreMenu button:hover{background:rgba(255,255,255,0.08);}
 
-  /* Compact topbar: stack search on its own row, buttons become icon-only 44x44 */
-  @media (max-width: 700px){
+  /* Compact topbar: stack search on its own row, buttons become icon-only 44x44.
+     900px covers iPad portrait (~768-834px), not just phones. */
+  @media (max-width: 900px){
     #brand .subtitle{display:none;}
     #brand{padding:8px 12px;}
     #searchwrap{order:3; flex-basis:100%; max-width:none; min-width:0;}
@@ -201,7 +202,7 @@
 
   /* Search results dropdown */
   #searchResults{
-    position:absolute; top:72px; left:16px; width:420px; max-height:60vh;
+    position:absolute; top:72px; left:16px; width:min(420px, calc(100vw - 32px)); max-height:60vh;
     overflow-y:auto; z-index:1000; display:none;
   }
   #searchResults.show{display:block;}
@@ -655,7 +656,6 @@
       <button class="wd-tab active" data-tab="architect">Par architecte</button>
       <button class="wd-tab" data-tab="place">Par lieu</button>
       <button class="wd-tab" data-tab="year">Par année</button>
-      <button class="wd-tab" data-tab="rce">Pays-Bas (RCE)</button>
     </div>
     <div class="wd-body">
       <div id="wd-pane-architect">
@@ -687,19 +687,6 @@
           <button class="wd-btn" id="wdYearSearchBtn">Rechercher</button>
         </div>
         <div class="wd-status" id="wdYearStatus">Cherche les structures architecturales dont la date d'achèvement ou d'ouverture officielle correspond à cette année, toutes localisations confondues. Peut prendre quelques secondes.</div>
-      </div>
-      <div id="wd-pane-rce" style="display:none;">
-        <div class="wd-row">
-          <input id="wdRceInput" type="text" placeholder="Ville néerlandaise, ex. Rotterdam" />
-          <select id="wdRceRadius">
-            <option value="2">2 km</option>
-            <option value="5" selected>5 km</option>
-            <option value="10">10 km</option>
-            <option value="20">20 km</option>
-          </select>
-          <button class="wd-btn" id="wdRceSearchBtn">Rechercher</button>
-        </div>
-        <div class="wd-status" id="wdRceStatus">Rijksmonumenten — registre officiel néerlandais (RCE), enrichi de photos Wikimedia Commons quand disponibles.</div>
       </div>
       <div class="wd-results" id="wdResultsList"></div>
     </div>
@@ -809,7 +796,7 @@
   }
 
   function initMap(){
-    map = L.map('map', {zoomControl:true, worldCopyJump:true, minZoom:1}).setView([46.6, 2.4], 5);
+    map = L.map('map', {zoomControl:true, worldCopyJump:true, minZoom:1, maxZoom:19}).setView([46.6, 2.4], 5);
     let vectorBasemapOk = false;
     try{
       if(typeof L.maplibreGL === 'function'){
@@ -972,20 +959,22 @@
   document.getElementById('autofillBtn').onclick = async ()=>{
     const title = fTitle.value.trim();
     if(!title){ autofillStatus.textContent = "Saisissez d'abord un nom de bâtiment."; return; }
+    const btn = document.getElementById('autofillBtn');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Recherche…';
     autofillStatus.textContent = 'Recherche sur Wikidata…';
     try{
       const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(title)}&language=fr&format=json&origin=*&type=item&limit=1`;
-      const res = await fetch(searchUrl);
-      const data = await res.json();
+      const data = await fetchJson(searchUrl, {}, 8000);
       if(!data.search || !data.search.length){
         autofillStatus.textContent = 'Aucun résultat Wikidata pour ce nom.';
         return;
       }
       const qid = data.search[0].id;
       const query = `
-        SELECT ?image ?commonscat ?date ?architect ?architectLabel ?city ?cityLabel ?article WHERE {
+        SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article WHERE {
           OPTIONAL { wd:${qid} wdt:P18 ?image . }
-          OPTIONAL { wd:${qid} wdt:P373 ?commonscat . }
           OPTIONAL { wd:${qid} wdt:P571 ?date . }
           OPTIONAL { wd:${qid} wdt:P84 ?architect . }
           OPTIONAL { wd:${qid} wdt:P131 ?city . }
@@ -1003,17 +992,14 @@
       if(!fCity.value.trim() && r.cityLabel){ fCity.value = r.cityLabel.value; filled.push('ville'); }
       if(!fPhoto.value.trim() && r.image){ fPhoto.value = r.image.value; filled.push('photo'); }
       if(!fSource.value.trim() && r.article){ fSource.value = r.article.value; filled.push('source'); }
-      if(r.commonscat){
-        (await fetchCommonsGallery(r.commonscat.value)).forEach(u=>{
-          if(u!==fPhoto.value.trim() && !editPhotos.includes(u)){ editPhotos.push(u); filled.push('photos supplémentaires'); }
-        });
-        renderPhotosList();
-      }
       autofillStatus.textContent = filled.length
         ? `Complété depuis Wikidata : ${[...new Set(filled)].join(', ')}. Vérifiez avant d'enregistrer.`
         : 'Fiche Wikidata trouvée, mais tous les champs étaient déjà renseignés.';
     }catch(e){
-      autofillStatus.textContent = 'Échec de la recherche (réseau).';
+      autofillStatus.textContent = 'Échec de la recherche (réseau ou délai dépassé).';
+    }finally{
+      btn.disabled = false;
+      btn.textContent = originalLabel;
     }
   };
 
@@ -1078,11 +1064,12 @@
   document.getElementById('geocodeBtn').onclick = async ()=>{
     const q = fAddress.value.trim();
     if(!q){ geocodeStatus.textContent = 'Saisissez une adresse d\'abord.'; return; }
+    const btn = document.getElementById('geocodeBtn');
+    btn.disabled = true;
     geocodeStatus.textContent = 'Recherche…';
     try{
       const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-      const res = await fetch(url, {headers:{'Accept':'application/json'}});
-      const data = await res.json();
+      const data = await fetchJson(url, {headers:{'Accept':'application/json'}}, 8000);
       if(data && data.length){
         pendingLatLng = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
         geocodeStatus.textContent = `Trouvé — ${data[0].lat}, ${data[0].lon}. L'épingle sera placée ici à l'enregistrement.`;
@@ -1090,7 +1077,9 @@
         geocodeStatus.textContent = "Adresse introuvable. Vous pourrez placer l'épingle manuellement sur la carte.";
       }
     }catch(e){
-      geocodeStatus.textContent = "Échec du géocodage (réseau). Placez l'épingle manuellement.";
+      geocodeStatus.textContent = "Échec du géocodage (réseau ou délai dépassé). Placez l'épingle manuellement.";
+    }finally{
+      btn.disabled = false;
     }
   };
 
@@ -1221,7 +1210,6 @@
       document.getElementById('wd-pane-architect').style.display = tab.dataset.tab==='architect' ? '' : 'none';
       document.getElementById('wd-pane-place').style.display = tab.dataset.tab==='place' ? '' : 'none';
       document.getElementById('wd-pane-year').style.display = tab.dataset.tab==='year' ? '' : 'none';
-      document.getElementById('wd-pane-rce').style.display = tab.dataset.tab==='rce' ? '' : 'none';
       wdResultsList.innerHTML=''; wdSelected = new Set(); updateWdCount();
     };
   });
@@ -1232,12 +1220,29 @@
     return { lng: parseFloat(m[1]), lat: parseFloat(m[2]) };
   }
 
-  async function sparqlQuery(query){
+  async function fetchJson(url, opts, timeoutMs){
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), timeoutMs || 8000);
+    try{
+      const res = await fetch(url, {...(opts||{}), signal: controller.signal});
+      return await res.json();
+    }finally{
+      clearTimeout(timer);
+    }
+  }
+
+  async function sparqlQuery(query, timeoutMs){
     const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query);
-    const res = await fetch(url, {headers:{'Accept':'application/sparql-results+json'}});
-    if(!res.ok) throw new Error('SPARQL request failed: ' + res.status);
-    const data = await res.json();
-    return data.results.bindings;
+    const controller = new AbortController();
+    const timer = setTimeout(()=>controller.abort(), timeoutMs || 10000);
+    try{
+      const res = await fetch(url, {headers:{'Accept':'application/sparql-results+json'}, signal: controller.signal});
+      if(!res.ok) throw new Error('SPARQL request failed: ' + res.status);
+      const data = await res.json();
+      return data.results.bindings;
+    }finally{
+      clearTimeout(timer);
+    }
   }
 
   function renderWdResults(items){
@@ -1287,44 +1292,25 @@
     wdImportBtn.disabled = wdSelected.size === 0;
   }
 
-  async function fetchCommonsGallery(commonscat){
-    try{
-      const controller = new AbortController();
-      const timer = setTimeout(()=>controller.abort(), 5000);
-      const url = `https://commons.wikimedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent('Category:'+commonscat)}&cmtype=file&cmlimit=8&format=json&origin=*`;
-      const res = await fetch(url, {signal: controller.signal});
-      clearTimeout(timer);
-      const data = await res.json();
-      const members = (data.query && data.query.categorymembers) || [];
-      return members.map(m => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(m.title.replace(/^File:/,'')));
-    }catch(e){ return []; }
-  }
-
   wdImportBtn.onclick = async ()=>{
     wdImportBtn.disabled = true;
     const originalLabel = wdImportBtn.textContent;
     wdImportBtn.textContent = 'Import en cours…';
     try{
       let added = 0;
-      let enrichedCount = 0;
       for(const qid of Array.from(wdSelected)){
-        const already = projects.some(p=> p.wikidataId===qid || p.rceId===qid);
+        const already = projects.some(p=> p.wikidataId===qid);
         if(already) continue;
         const it = wdResultsData[qid];
         if(!it || !it.coord) continue;
-        let images = it.image ? [it.image] : [];
-        if(!it.rce && it.commonscat && enrichedCount < 50){
-          enrichedCount++;
-          (await fetchCommonsGallery(it.commonscat)).forEach(u=>{ if(!images.includes(u)) images.push(u); });
-        }
         const project = {
           id: uid(), title: it.label, architect: it.architectLabel||'', year: it.year||'', city:'',
           address:'', lat: it.coord.lat, lng: it.coord.lng,
-          image: images[0]||'', source: it.source || (it.rce ? '' : ('https://www.wikidata.org/wiki/'+qid)),
-          notes: it.rce ? 'Importé depuis le registre RCE (Pays-Bas).' : 'Importé depuis Wikidata.',
-          images
+          image: it.image||'', images: it.image ? [it.image] : [],
+          source: it.source || ('https://www.wikidata.org/wiki/'+qid),
+          notes: 'Importé depuis Wikidata.',
+          wikidataId: qid
         };
-        if(it.rce) project.rceId = qid; else project.wikidataId = qid;
         projects.push(project);
         added++;
       }
@@ -1346,14 +1332,15 @@
     const status = document.getElementById('wdArchStatus');
     const wrap = document.getElementById('wdArchCandidatesWrap');
     const select = document.getElementById('wdArchSelect');
+    const btn = document.getElementById('wdArchSearchBtn');
     if(!q){ status.textContent = "Saisissez un nom d'architecte."; return; }
+    btn.disabled = true;
     status.textContent = 'Recherche de l\'architecte…';
     wrap.style.display = 'none';
     wdResultsList.innerHTML = '';
     try{
       const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(q)}&language=fr&format=json&origin=*&type=item&limit=8`;
-      const res = await fetch(url);
-      const data = await res.json();
+      const data = await fetchJson(url, {}, 8000);
       if(!data.search || !data.search.length){
         status.textContent = 'Aucun architecte trouvé sur Wikidata.';
         return;
@@ -1364,7 +1351,9 @@
       loadArchitectBuildings(select.value, select.options[select.selectedIndex].dataset.label);
       select.onchange = ()=> loadArchitectBuildings(select.value, select.options[select.selectedIndex].dataset.label);
     }catch(e){
-      status.textContent = 'Échec de la recherche (réseau).';
+      status.textContent = 'Échec de la recherche (réseau ou délai dépassé).';
+    }finally{
+      btn.disabled = false;
     }
   };
 
@@ -1406,7 +1395,7 @@
       status.textContent = items.length ? `${items.length} bâtiment(s) géolocalisé(s) trouvé(s).` : 'Aucun bâtiment géolocalisé trouvé pour cet architecte.';
       renderWdResults(items);
     }catch(e){
-      status.textContent = 'Échec de la requête Wikidata (réseau).';
+      status.textContent = 'Échec de la requête Wikidata (réseau ou délai dépassé).';
     }
   }
 
@@ -1415,13 +1404,14 @@
     const q = document.getElementById('wdPlaceInput').value.trim();
     const radius = document.getElementById('wdRadius').value;
     const status = document.getElementById('wdPlaceStatus');
+    const btn = document.getElementById('wdPlaceSearchBtn');
     if(!q){ status.textContent = 'Saisissez un lieu.'; return; }
+    btn.disabled = true;
     status.textContent = 'Localisation du lieu…';
     wdResultsList.innerHTML = '';
     try{
       const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-      const geoRes = await fetch(geoUrl, {headers:{'Accept':'application/json'}});
-      const geoData = await geoRes.json();
+      const geoData = await fetchJson(geoUrl, {headers:{'Accept':'application/json'}}, 8000);
       if(!geoData.length){ status.textContent = 'Lieu introuvable.'; return; }
       const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
       status.textContent = `Recherche des bâtiments dans un rayon de ${radius} km…`;
@@ -1462,7 +1452,9 @@
       status.textContent = items.length ? `${items.length} bâtiment(s) trouvé(s) autour de "${q}".` : 'Aucun bâtiment avec image trouvé dans ce rayon — essayez un rayon plus large.';
       renderWdResults(items);
     }catch(e){
-      status.textContent = 'Échec de la requête (réseau).';
+      status.textContent = 'Échec de la requête (réseau ou délai dépassé).';
+    }finally{
+      btn.disabled = false;
     }
   };
 
@@ -1470,7 +1462,9 @@
   document.getElementById('wdYearSearchBtn').onclick = async ()=>{
     const year = parseInt(document.getElementById('wdYearInput').value.trim(), 10);
     const status = document.getElementById('wdYearStatus');
+    const btn = document.getElementById('wdYearSearchBtn');
     if(!year || year < 1800 || year > 2100){ status.textContent = 'Saisissez une année valide.'; return; }
+    btn.disabled = true;
     status.textContent = `Recherche des projets ${year} sur Wikidata… (peut prendre 10-20s)`;
     wdResultsList.innerHTML = '';
     const query = `
@@ -1491,7 +1485,7 @@
       LIMIT 300
     `;
     try{
-      const rows = await sparqlQuery(query);
+      const rows = await sparqlQuery(query, 25000);
       const seen = new Set();
       const items = [];
       rows.forEach(r=>{
@@ -1517,52 +1511,8 @@
       renderWdResults(items);
     }catch(e){
       status.textContent = 'Échec de la requête (réseau, ou requête trop lourde — réessayez).';
-    }
-  };
-
-  // -- RCE (Netherlands) search --
-  document.getElementById('wdRceSearchBtn').onclick = async ()=>{
-    const q = document.getElementById('wdRceInput').value.trim();
-    const radius = document.getElementById('wdRceRadius').value;
-    const status = document.getElementById('wdRceStatus');
-    if(!q){ status.textContent = 'Saisissez une ville néerlandaise.'; return; }
-    status.textContent = 'Localisation du lieu…';
-    wdResultsList.innerHTML = '';
-    try{
-      const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=nl&q=' + encodeURIComponent(q);
-      const geoRes = await fetch(geoUrl, {headers:{'Accept':'application/json'}});
-      const geoData = await geoRes.json();
-      if(!geoData.length){ status.textContent = 'Lieu introuvable aux Pays-Bas.'; return; }
-      const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
-      status.textContent = `Recherche des rijksmonumenten dans un rayon de ${radius} km…`;
-      const rceUrl = `https://api.rijksmonumenten.info/select/?q=*:*&fq={!geofilt}&sfield=abc_locatie&pt=${lat},${lon}&d=${radius}&rows=100&wt=json`;
-      const rceRes = await fetch(rceUrl, {headers:{'Accept':'application/json'}});
-      const rceData = await rceRes.json();
-      const docs = (rceData.response && rceData.response.docs) || [];
-      const joinField = v => Array.isArray(v) ? v.join(', ') : (v || '');
-      const items = docs.map(d=>{
-        const dlat = Array.isArray(d.abc_lat) ? d.abc_lat[0] : d.abc_lat;
-        const dlon = Array.isArray(d.abc_lon) ? d.abc_lon[0] : d.abc_lon;
-        if(dlat == null || dlon == null) return null;
-        const wikiImage = Array.isArray(d.wiki_image) ? d.wiki_image[0] : d.wiki_image;
-        const image = wikiImage
-          ? 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(wikiImage)
-          : (Array.isArray(d.wiki_thumb_url) ? d.wiki_thumb_url[0] : d.wiki_thumb_url) || '';
-        return {
-          qid: 'rce-' + (Array.isArray(d.rce_obj_nummer) ? d.rce_obj_nummer[0] : d.rce_obj_nummer),
-          label: joinField(d.rce_objectnaam) || joinField(d.rce_adres) || 'Rijksmonument',
-          coord: { lat: parseFloat(dlat), lng: parseFloat(dlon) },
-          image,
-          source: (Array.isArray(d.wiki_article_url) ? d.wiki_article_url[0] : d.wiki_article_url) || '',
-          architectLabel: joinField(d.rce_architect).replace(/;/g, ', '),
-          year: joinField(d.rce_bouwjaar_tekst),
-          rce: true
-        };
-      }).filter(Boolean);
-      status.textContent = items.length ? `${items.length} rijksmonument(en) trouvé(s) autour de "${q}".` : `Aucun rijksmonument trouvé autour de "${q}" — essayez un rayon plus large.`;
-      renderWdResults(items);
-    }catch(e){
-      status.textContent = 'Échec de la requête (réseau).';
+    }finally{
+      btn.disabled = false;
     }
   };
 

@@ -15,13 +15,10 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 - **Recherche automatique** — bouton « Compléter automatiquement » qui va chercher sur Wikidata l'architecte, l'année, la ville, la photo et le lien source manquants, sans écraser les champs déjà renseignés
 - **Enrichissement libre** — photos multiples, plans/documents (libellé + lien), commentaires horodatés (journal cumulatif), notes, ville, lien source
 - **Recherche** — par nom, architecte ou ville, navigable au clavier
-- **Import automatique** :
-  - **Wikidata** — par architecte, par lieu (rayon réglable), ou par année d'achèvement/ouverture
-  - **RCE (Pays-Bas)** — registre officiel des rijksmonumenten, par ville
-  - enrichissement photo automatique via les catégories **Wikimedia Commons** associées
-  - lien de recherche rapide vers **Structurae** sur chaque fiche
+- **Import automatique depuis Wikidata** — par architecte, par lieu (rayon réglable), ou par année d'achèvement/ouverture ; lien de recherche rapide vers **Structurae** sur chaque fiche
 - **Export / import JSON** — sauvegarde et restauration de toutes les données depuis le menu « ⋯ », pour ne rien perdre lors des mises à jour de l'app
 - **Accessibilité** — focus clavier visible, cibles tactiles 44px, contraste AA, `aria-label` sur les contrôles, zones sûres iPhone, respect de `prefers-reduced-motion`
+- **Fiabilité réseau** — délai maximal sur chaque appel externe (Wikidata, géocodage), avec état de chargement visible ; aucune recherche ne peut rester bloquée silencieusement
 - **Stockage local** — `localStorage`, aucun serveur, aucun compte requis
 
 ## Déploiement
@@ -36,12 +33,12 @@ Ce dépôt contient un unique fichier `index.html` autonome.
 
 - Pas de récupération automatique des projets depuis worldarchitecture.org (pas d'API publique) — l'ajout d'image/lien depuis ce site se fait manuellement.
 - Pas d'import automatique depuis Structurae (pas d'API gratuite) — lien de recherche rapide fourni à la place.
-- L'import Wikidata/RCE dépend de la couverture et de la qualité des données saisies par ces sources.
+- L'import et la recherche automatique dépendent de la couverture et de la qualité des données Wikidata.
 - Les données sont stockées par navigateur/appareil — utiliser l'export/import JSON pour transférer ou sauvegarder.
 
 ## Stack
 
-Leaflet.js · Leaflet.markercluster · MapLibre GL JS (OpenFreeMap) · Nominatim (géocodage) · Wikidata Query Service (SPARQL) · API RCE/rijksmonumenten.info · Wikimedia Commons API · aucune dépendance de build.
+Leaflet.js · Leaflet.markercluster · MapLibre GL JS (OpenFreeMap) · Nominatim (géocodage) · Wikidata Query Service (SPARQL) · aucune dépendance de build.
 
 ## Licence
 

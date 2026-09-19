@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0
+### Corrigé
+- Fond de carte : `maxZoom` manquant sur l'instance Leaflet, requis par le binding MapLibre GL Leaflet — cause racine des plantages de carte observés depuis plusieurs versions.
+- Barre d'outils : seuil du mode compact remonté de 700px à 900px pour couvrir l'iPad en portrait (~768-834px), qui restait en mode « bureau » trop à l'étroit.
+- Largeur du menu de résultats de recherche contrainte à l'écran disponible.
+
+### Retiré
+- Import RCE (Pays-Bas) et enrichissement photo Wikimedia Commons — sources de blocages silencieux ; retour à un import Wikidata seul, plus simple et fiable.
+
+### Changé
+- Délai maximal ajouté sur tous les appels réseau restants (recherche Wikidata, géocodage, recherche automatique), avec état de chargement visible sur chaque bouton concerné — plus aucune recherche ne peut rester bloquée sans retour visuel.
+
 ## 1.3.0
 ### Ajouté
 - Champs essentiels dès la création : nom, architecte, année, adresse, photo d'illustration.
