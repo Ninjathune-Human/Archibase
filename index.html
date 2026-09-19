@@ -966,7 +966,7 @@
     autofillStatus.textContent = 'Recherche sur Wikidata…';
     try{
       const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(title)}&language=fr&format=json&origin=*&type=item&limit=1`;
-      const data = await fetchJson(searchUrl, {}, 8000);
+      const data = await fetchJson(searchUrl, {}, 25000);
       if(!data.search || !data.search.length){
         autofillStatus.textContent = 'Aucun résultat Wikidata pour ce nom.';
         return;
@@ -1069,7 +1069,7 @@
     geocodeStatus.textContent = 'Recherche…';
     try{
       const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-      const data = await fetchJson(url, {headers:{'Accept':'application/json'}}, 8000);
+      const data = await fetchJson(url, {headers:{'Accept':'application/json'}}, 25000);
       if(data && data.length){
         pendingLatLng = L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
         geocodeStatus.textContent = `Trouvé — ${data[0].lat}, ${data[0].lon}. L'épingle sera placée ici à l'enregistrement.`;
@@ -1222,7 +1222,7 @@
 
   async function fetchJson(url, opts, timeoutMs){
     const controller = new AbortController();
-    const timer = setTimeout(()=>controller.abort(), timeoutMs || 8000);
+    const timer = setTimeout(()=>controller.abort(), timeoutMs || 25000);
     try{
       const res = await fetch(url, {...(opts||{}), signal: controller.signal});
       return await res.json();
@@ -1234,7 +1234,7 @@
   async function sparqlQuery(query, timeoutMs){
     const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query);
     const controller = new AbortController();
-    const timer = setTimeout(()=>controller.abort(), timeoutMs || 10000);
+    const timer = setTimeout(()=>controller.abort(), timeoutMs || 25000);
     try{
       const res = await fetch(url, {headers:{'Accept':'application/sparql-results+json'}, signal: controller.signal});
       if(!res.ok) throw new Error('SPARQL request failed: ' + res.status);
@@ -1343,7 +1343,7 @@
     wdResultsList.innerHTML = '';
     try{
       const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(q)}&language=fr&format=json&origin=*&type=item&limit=8`;
-      const data = await fetchJson(url, {}, 8000);
+      const data = await fetchJson(url, {}, 25000);
       if(!data.search || !data.search.length){
         status.textContent = 'Aucun architecte trouvé sur Wikidata.';
         return;
@@ -1414,7 +1414,7 @@
     wdResultsList.innerHTML = '';
     try{
       const geoUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-      const geoData = await fetchJson(geoUrl, {headers:{'Accept':'application/json'}}, 8000);
+      const geoData = await fetchJson(geoUrl, {headers:{'Accept':'application/json'}}, 25000);
       if(!geoData.length){ status.textContent = 'Lieu introuvable.'; return; }
       const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
       status.textContent = `Recherche des bâtiments dans un rayon de ${radius} km…`;
