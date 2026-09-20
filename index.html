@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atlas — relevé de projets d'architecture</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230A0A0A'/%3E%3Cpath d='M5 27 V5 H27' fill='none' stroke='%23FAFAF8' stroke-width='3'/%3E%3Cpath d='M11 21 H21 V11' fill='none' stroke='%23FAFAF8' stroke-width='2'/%3E%3Crect x='18.5' y='18.5' width='5' height='5' fill='%23E1332B'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
@@ -93,11 +94,13 @@
     .panel{ background:var(--ink-2); backdrop-filter:none; -webkit-backdrop-filter:none; }
   }
   #brand{
-    padding:10px 18px;
-    display:flex; flex-direction:column; gap:2px;
+    padding:8px 18px;
+    display:flex; flex-direction:row; align-items:center; gap:10px;
     border-left:3px solid var(--copper);
-    border-top-left-radius:var(--radius-xs); border-bottom-left-radius:var(--radius-xs);
+    overflow:hidden;
   }
+  #brandMark{flex-shrink:0;}
+  .brand-text{display:flex; flex-direction:column; gap:2px;}
   #brand .title{
     font-family:'Space Grotesk', sans-serif;
     font-weight:600; font-size:16px; letter-spacing:0.02em;
@@ -108,6 +111,7 @@
     font-size:10px; color:var(--blueprint); letter-spacing:0.08em; text-transform:uppercase;
   }
   #searchwrap{
+    position:relative;
     flex:1; min-width:220px; max-width:480px;
     display:flex; align-items:center; gap:8px;
     padding:0 18px;
@@ -128,6 +132,21 @@
   #addBtn{
     min-height:44px;
     padding:0 20px;
+    background:var(--ink);
+    color:var(--copper);
+    border:1.5px solid var(--copper); border-radius:var(--radius-full);
+    font-family:'Space Grotesk'; font-weight:600; font-size:13px;
+    letter-spacing:0.03em;
+    cursor:pointer;
+    pointer-events:auto;
+    display:flex; align-items:center; gap:8px;
+    transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+  }
+  #addBtn:hover{background:rgba(225,51,43,0.12); transform:translateY(-1px);}
+  #addBtn.active{background:var(--danger); border-color:var(--danger); color:var(--paper);}
+  #wdBtn{
+    min-height:44px;
+    padding:0 20px;
     background:var(--copper);
     color:var(--ink);
     border:none; border-radius:var(--radius-full);
@@ -139,27 +158,11 @@
     box-shadow:var(--shadow-sm);
     transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
   }
-  #addBtn:hover{background:var(--copper-bright); transform:translateY(-1px);}
-  #addBtn.active{background:var(--danger); color:var(--paper);}
-  #wdBtn{
-    min-height:44px;
-    padding:0 20px;
-    background:var(--ink-2);
-    background:color-mix(in srgb, var(--ink-2) 88%, transparent);
-    color:var(--blueprint);
-    border:1px solid var(--blueprint-dim); border-radius:var(--radius-full);
-    font-family:'Space Grotesk'; font-weight:600; font-size:13px;
-    letter-spacing:0.03em;
-    cursor:pointer;
-    pointer-events:auto;
-    display:flex; align-items:center; gap:8px;
-    transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
-  }
-  #wdBtn:hover{background:var(--grid); transform:translateY(-1px);}
+  #wdBtn:hover{background:var(--copper-bright); transform:translateY(-1px);}
   .btn-icon{font-size:15px; line-height:1;}
 
   .more-wrap{position:relative; pointer-events:auto;}
-  #moreBtn{
+  #viewBtn, #dataBtn{
     min-height:44px; min-width:44px; padding:0 14px;
     background:var(--ink-2);
     background:color-mix(in srgb, var(--ink-2) 88%, transparent); color:var(--blueprint);
@@ -168,22 +171,22 @@
     font-size:18px; letter-spacing:0.05em;
     transition:background var(--duration-fast) var(--ease-standard);
   }
-  #moreBtn:hover{background:var(--grid);}
-  #moreMenu{
+  #viewBtn:hover, #dataBtn:hover{background:var(--grid);}
+  #viewMenu, #dataMenu{
     display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:1100;
     background:var(--ink-2);
     background:color-mix(in srgb, var(--ink) 94%, transparent); border:1px solid var(--grid); border-radius:var(--radius-md);
     min-width:240px; overflow:hidden; box-shadow:var(--shadow-md);
   }
-  #moreMenu.show{display:block;}
-  #moreMenu button{
+  #viewMenu.show, #dataMenu.show{display:block;}
+  #viewMenu button, #dataMenu button{
     display:flex; align-items:center; gap:10px; width:100%; min-height:44px;
     padding:0 14px; background:none; border:none; text-align:left; cursor:pointer;
     font-family:'IBM Plex Sans'; font-size:13px; color:var(--paper);
     border-bottom:1px solid var(--grid);
   }
-  #moreMenu button:last-of-type{border-bottom:none;}
-  #moreMenu button:hover{background:rgba(255,255,255,0.08);}
+  #viewMenu button:last-of-type, #dataMenu button:last-of-type{border-bottom:none;}
+  #viewMenu button:hover, #dataMenu button:hover{background:rgba(255,255,255,0.08);}
 
   /* Compact topbar: stack search on its own row, buttons become icon-only 44x44.
      900px covers iPad portrait (~768-834px), not just phones. */
@@ -202,7 +205,7 @@
 
   /* Search results dropdown */
   #searchResults{
-    position:absolute; top:72px; left:16px; width:min(420px, calc(100vw - 32px)); max-height:60vh;
+    position:absolute; top:calc(100% + 8px); left:0; right:0; width:auto; max-width:none; max-height:60vh;
     overflow-y:auto; z-index:1000; display:none;
   }
   #searchResults.show{display:block;}
@@ -456,7 +459,7 @@
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.06em;
     color:#6E6E6E; margin-bottom:4px;
   }
-  #moreBtn.has-active-filter::after{
+  #viewBtn.has-active-filter::after{
     content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
     border-radius:50%; background:var(--copper); border:1.5px solid var(--ink);
   }
@@ -585,13 +588,31 @@
 
 <div id="topbar">
   <div id="brand" class="panel">
-    <div class="title">Atlas</div>
-    <div class="subtitle">Relevé de projets — worldarchitecture.org</div>
+    <svg id="brandMark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" shape-rendering="crispEdges">
+      <!-- trame de fond, façon papier millimétré -->
+      <g stroke="#FAFAF8" stroke-width="1" opacity="0.28">
+        <line x1="11" y1="2" x2="11" y2="30"/>
+        <line x1="21" y1="2" x2="21" y2="30"/>
+        <line x1="2" y1="11" x2="30" y2="11"/>
+        <line x1="2" y1="21" x2="30" y2="21"/>
+      </g>
+      <!-- mur d'angle en coupe, trait plein -->
+      <path d="M5 27 V5 H27" fill="none" stroke="#FAFAF8" stroke-width="3"/>
+      <!-- refend intérieur -->
+      <path d="M11 21 H21 V11" fill="none" stroke="#FAFAF8" stroke-width="2"/>
+      <!-- repère au point d'intersection -->
+      <rect x="18.5" y="18.5" width="5" height="5" fill="#E1332B"/>
+    </svg>
+    <div class="brand-text">
+      <div class="title">Atlas</div>
+      <div class="subtitle">Relevé de projets — worldarchitecture.org</div>
+    </div>
   </div>
   <div id="searchwrap" class="panel">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EDEDEA" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
     <input id="search" type="text" placeholder="Rechercher un bâtiment, un architecte, une ville…" aria-label="Rechercher un projet" />
     <span id="searchCount" aria-live="polite"></span>
+    <div id="searchResults" class="panel"></div>
   </div>
   <button id="wdBtn" aria-label="Importer des bâtiments" title="Importer des bâtiments">
     <span class="btn-icon" aria-hidden="true">⊕</span><span class="btn-label">Importer des bâtiments</span>
@@ -600,16 +621,23 @@
     <span class="btn-icon" aria-hidden="true">+</span><span class="btn-label">Ajouter un projet</span>
   </button>
   <div class="more-wrap">
-    <button id="moreBtn" aria-label="Plus d'options" title="Plus d'options" aria-haspopup="true" aria-expanded="false">
-      <span class="btn-icon" aria-hidden="true">⋯</span>
+    <button id="viewBtn" aria-label="Filtres et collections" title="Filtres et collections" aria-haspopup="true" aria-expanded="false">
+      <span class="btn-icon" aria-hidden="true">▤</span>
     </button>
-    <div id="moreMenu" role="menu">
+    <div id="viewMenu" role="menu">
       <button type="button" id="collectionsMenuBtn" role="menuitem">
         <span aria-hidden="true">🗂</span> Collections
       </button>
       <button type="button" id="filtersMenuBtn" role="menuitem">
         <span aria-hidden="true">▤</span> Filtres
       </button>
+    </div>
+  </div>
+  <div class="more-wrap">
+    <button id="dataBtn" aria-label="Importer ou exporter les données" title="Importer ou exporter les données" aria-haspopup="true" aria-expanded="false">
+      <span class="btn-icon" aria-hidden="true">⇅</span>
+    </button>
+    <div id="dataMenu" role="menu">
       <button type="button" id="exportBtn" role="menuitem">
         <span aria-hidden="true">↓</span> Exporter les données (.json)
       </button>
@@ -622,7 +650,6 @@
 </div>
 
 <div id="crosshairHint">Cliquez sur la carte pour placer l'épingle — Échap pour annuler</div>
-<div id="searchResults" class="panel"></div>
 <div id="toast"></div>
 
 <div id="modalOverlay">
@@ -879,6 +906,7 @@
   let typologyFilter = null;   // null = tout afficher ; sinon Set de typologies visibles ('__none__' = non renseignée)
   let decadeFilter = null;     // null = tout afficher ; sinon Set de décennies visibles, ex. '2010s' ('__none__' = année inconnue)
   let statusFilter = null;     // null = tout afficher ; sinon Set parmi 'visited' / 'notvisited'
+  let searchQueryFilter = '';  // '' = tout afficher ; sinon sous-chaîne à trouver dans titre/architecte/ville
   let markers = {};       // id -> leaflet marker
   let map, clusterGroup;
   let placingNew = false;
@@ -962,12 +990,16 @@
       const status = p.visited ? 'visited' : 'notvisited';
       if(!statusFilter.has(status)) return false;
     }
+    if(searchQueryFilter){
+      const hay = [p.title, p.architect, p.city].filter(Boolean).join(' ').toLowerCase();
+      if(!hay.includes(searchQueryFilter)) return false;
+    }
     return true;
   }
 
   function updateFilterIndicator(){
     const active = !!(collectionFilter || typologyFilter || decadeFilter || statusFilter);
-    document.getElementById('moreBtn').classList.toggle('has-active-filter', active);
+    document.getElementById('viewBtn').classList.toggle('has-active-filter', active);
   }
 
   function showToast(msg, ms=2400){
@@ -1020,7 +1052,8 @@
   }
 
   function initMap(){
-    map = L.map('map', {zoomControl:true, worldCopyJump:true, minZoom:1, maxZoom:19}).setView([46.6, 2.4], 5);
+    map = L.map('map', {zoomControl:false, worldCopyJump:true, minZoom:1, maxZoom:19}).setView([46.6, 2.4], 5);
+    L.control.zoom({position:'bottomleft'}).addTo(map);
     let vectorBasemapOk = false;
     try{
       if(typeof L.maplibreGL === 'function'){
@@ -1514,6 +1547,9 @@
 
   function runSearch(q){
     q = q.trim().toLowerCase();
+    searchQueryFilter = q;
+    updateFilterIndicator();
+    rebuildMarkers();
     if(!q){ searchResults.classList.remove('show'); searchCount.textContent=''; return; }
     const hits = projects.filter(p=>{
       const hay = [p.title,p.architect,p.city,p.address,p.notes].join(' ').toLowerCase();
@@ -1542,7 +1578,6 @@
         const p = projects.find(x=>x.id===el.dataset.id);
         if(p){
           map.setView([p.lat,p.lng], 14);
-          setTimeout(()=> markers[p.id] && markers[p.id].openPopup(), 350);
         }
         searchResults.classList.remove('show');
       };
@@ -1924,30 +1959,42 @@
     ];
   }
 
-  // ---- More menu / export / import ----
-  const moreBtn = document.getElementById('moreBtn');
-  const moreMenu = document.getElementById('moreMenu');
-  moreBtn.onclick = (e)=>{
-    e.stopPropagation();
-    const show = !moreMenu.classList.contains('show');
-    moreMenu.classList.toggle('show', show);
-    moreBtn.setAttribute('aria-expanded', String(show));
-  };
+  // ---- Menus (vue / données) ----
+  const viewBtn = document.getElementById('viewBtn');
+  const viewMenu = document.getElementById('viewMenu');
+  const dataBtn = document.getElementById('dataBtn');
+  const dataMenu = document.getElementById('dataMenu');
+  const menuPairs = [[viewBtn, viewMenu], [dataBtn, dataMenu]];
+
+  function closeAllMenus(){
+    menuPairs.forEach(([btn, menu])=>{
+      menu.classList.remove('show');
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  menuPairs.forEach(([btn, menu])=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      const show = !menu.classList.contains('show');
+      closeAllMenus();
+      if(show){
+        menu.classList.add('show');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    };
+  });
+
   document.addEventListener('click', (e)=>{
-    if(moreMenu.classList.contains('show') && !moreMenu.contains(e.target) && e.target!==moreBtn){
-      moreMenu.classList.remove('show');
-      moreBtn.setAttribute('aria-expanded', 'false');
-    }
+    const inside = menuPairs.some(([btn, menu])=> menu.contains(e.target) || btn.contains(e.target));
+    if(!inside) closeAllMenus();
   });
   document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape' && moreMenu.classList.contains('show')){
-      moreMenu.classList.remove('show');
-      moreBtn.setAttribute('aria-expanded', 'false');
-    }
+    if(e.key === 'Escape') closeAllMenus();
   });
 
   document.getElementById('collectionsMenuBtn').onclick = ()=>{
-    moreMenu.classList.remove('show');
+    closeAllMenus();
     renderCollectionsPanel();
     document.getElementById('collectionsOverlay').classList.add('show');
   };
@@ -2020,7 +2067,7 @@
 
   // ---- Filters panel ----
   document.getElementById('filtersMenuBtn').onclick = ()=>{
-    moreMenu.classList.remove('show');
+    closeAllMenus();
     renderFiltersPanel();
     document.getElementById('filtersOverlay').classList.add('show');
   };
@@ -2125,7 +2172,7 @@
   };
 
   document.getElementById('exportBtn').onclick = ()=>{
-    moreMenu.classList.remove('show');
+    closeAllMenus();
     const payload = {
       app: 'atlas-architecture', version: 1,
       exportedAt: new Date().toISOString(),
@@ -2145,7 +2192,7 @@
   };
 
   document.getElementById('importBtn').onclick = ()=>{
-    moreMenu.classList.remove('show');
+    closeAllMenus();
     document.getElementById('importFile').click();
   };
 

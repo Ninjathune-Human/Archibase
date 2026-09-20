@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.7.0
+### Ajouté
+- Identité visuelle : symbole « fragment de plan » (trame, mur d'angle en coupe, refend, repère rouge), à angles francs — dans l'app, en favicon et sur la bannière du dépôt.
+- Le bouton « ⋯ » est scindé en deux : un bouton Filtres/Collections (porteur de l'indicateur de filtre actif) et un bouton Import/Export.
+- La recherche filtre désormais la carte en direct : seules les réalisations correspondantes restent affichées.
+
+### Corrigé
+- Contrôles de zoom Leaflet déplacés en bas à gauche : ils apparaissaient en transparence derrière le bloc de marque en haut à gauche.
+- Menu de résultats de recherche ancré à la barre de recherche au lieu d'un décalage fixe — il recouvrait le champ sur iPad en portrait.
+- Hiérarchie des boutons de la barre d'outils : import en aplat rouge, ajout en contour rouge sur fond noir.
+
 ## 1.6.0
 ### Ajouté
 - Bannière photo en haut de la fiche projet, mise à jour en direct (URL tapée à la main, résultat de la recherche automatique) avec repli propre si l'image ne charge pas.
