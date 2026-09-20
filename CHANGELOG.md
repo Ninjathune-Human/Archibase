@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0
+### Ajouté
+- Bannière photo en haut de la fiche projet, mise à jour en direct (URL tapée à la main, résultat de la recherche automatique) avec repli propre si l'image ne charge pas.
+- « Compléter automatiquement » cherche désormais une photo dans trois sources en cascade : Wikidata (P18), champ image de l'infobox Wikipédia, puis catégorie Wikimedia Commons associée en dernier recours.
+
 ## 1.5.1
 ### Ajouté
 - « Compléter automatiquement » croise désormais Wikidata puis l'infobox de l'article Wikipédia associé (architecte, année, adresse) avant de recourir au géocodage inversé — Wikidata seule est souvent incomplète sur la date d'achèvement et l'adresse.

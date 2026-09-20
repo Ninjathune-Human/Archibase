@@ -312,6 +312,11 @@
     transition:background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
   }
   .m-close:hover{background:rgba(0,0,0,0.06); color:var(--text-on-paper);}
+  #modalBanner{
+    width:100%; height:180px; overflow:hidden; background:var(--paper-dim);
+    border-bottom:2px solid var(--copper);
+  }
+  #modalBanner img{width:100%; height:100%; object-fit:cover; display:block;}
   #modal .m-body{padding:18px 20px;}
   .field{margin-bottom:14px;}
   .field label{
@@ -628,6 +633,10 @@
         <h2 id="modalTitle">Ajouter un projet</h2>
       </div>
       <button class="m-close" id="modalClose" aria-label="Fermer">×</button>
+    </div>
+
+    <div id="modalBanner" style="display:none;">
+      <img id="modalBannerImg" src="" alt="" />
     </div>
 
     <div class="wd-tabs" id="modalTabs" style="display:none;">
@@ -1086,6 +1095,22 @@
   const fTypology = document.getElementById('f-typology');
   const fAddress = document.getElementById('f-address');
   const fPhoto = document.getElementById('f-photo');
+  const modalBanner = document.getElementById('modalBanner');
+  const modalBannerImg = document.getElementById('modalBannerImg');
+
+  function updateModalBanner(){
+    const url = fPhoto.value.trim();
+    if(url){
+      modalBannerImg.src = url;
+      modalBanner.style.display = '';
+    }else{
+      modalBanner.style.display = 'none';
+      modalBannerImg.removeAttribute('src');
+    }
+  }
+  modalBannerImg.onerror = ()=>{ if(modalBannerImg.getAttribute('src')) modalBanner.style.display = 'none'; };
+  fPhoto.addEventListener('input', updateModalBanner);
+
   const fSource = document.getElementById('f-source');
   const fNotes = document.getElementById('f-notes');
   const fVisited = document.getElementById('f-visited');
@@ -1207,8 +1232,23 @@
       if(addr) result.address = addr;
       const arch = extractInfoboxField(content, ['architect','architecte']);
       if(arch) result.architect = arch;
+      let img = extractInfoboxField(content, ['image','photo','image_photo']);
+      if(img){
+        img = img.replace(/^(File|Fichier|Image):/i, '').trim();
+        if(img) result.image = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(img);
+      }
       return result;
     }catch(e){ return {}; }
+  }
+
+  async function fetchCommonsFirstImage(commonscat){
+    try{
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent('Category:'+commonscat)}&cmtype=file&cmlimit=1&format=json&origin=*`;
+      const data = await fetchJson(url, {}, 25000);
+      const members = data.query && data.query.categorymembers;
+      if(!members || !members.length) return '';
+      return 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(members[0].title.replace(/^File:/,''));
+    }catch(e){ return ''; }
   }
 
   function guessTypology(label){
@@ -1242,13 +1282,14 @@
       }
       const qid = data.search[0].id;
       const query = `
-        SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article ?address ?type ?typeLabel WHERE {
+        SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article ?address ?type ?typeLabel ?commonscat WHERE {
           OPTIONAL { wd:${qid} wdt:P18 ?image . }
           OPTIONAL { wd:${qid} wdt:P571 ?date . }
           OPTIONAL { wd:${qid} wdt:P84 ?architect . }
           OPTIONAL { wd:${qid} wdt:P131 ?city . }
           OPTIONAL { wd:${qid} wdt:P969 ?address . }
           OPTIONAL { wd:${qid} wdt:P31 ?type . }
+          OPTIONAL { wd:${qid} wdt:P373 ?commonscat . }
           OPTIONAL { ?article schema:about wd:${qid} ; schema:isPartOf <https://fr.wikipedia.org/> . }
           SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en". }
         }
@@ -1262,7 +1303,7 @@
       if(!fArchitect.value.trim() && r.architectLabel){ fArchitect.value = r.architectLabel.value; filled.push('architecte'); }
       if(!fYear.value.trim() && r.date){ fYear.value = r.date.value.slice(0,4); filled.push('année'); }
       if(!fCity.value.trim()){ if(r.cityLabel){ fCity.value = r.cityLabel.value; filled.push('ville'); } else notFound.push('ville'); }
-      if(!fPhoto.value.trim()){ if(r.image){ fPhoto.value = r.image.value; filled.push('photo'); } else notFound.push('photo'); }
+      if(!fPhoto.value.trim() && r.image){ fPhoto.value = r.image.value; filled.push('photo'); }
       if(!fSource.value.trim()){ if(r.article){ fSource.value = r.article.value; filled.push('source'); } else notFound.push('source'); }
       if(!fTypology.value){
         const guess = r.typeLabel ? guessTypology(r.typeLabel.value) : '';
@@ -1271,16 +1312,23 @@
       if(!fAddress.value.trim() && r.address){ fAddress.value = r.address.value; filled.push('adresse'); }
 
       // Croisement avec l'infobox Wikipédia si Wikidata n'a pas tout : source secondaire,
-      // souvent plus complète sur la date d'achèvement et l'adresse que les données structurées.
-      if(r.article && (!fArchitect.value.trim() || !fYear.value.trim() || !fAddress.value.trim())){
+      // souvent plus complète sur la date d'achèvement, l'adresse et l'image que les données structurées.
+      if(r.article && (!fArchitect.value.trim() || !fYear.value.trim() || !fAddress.value.trim() || !fPhoto.value.trim())){
         autofillStatus.textContent = 'Recherche sur Wikidata… puis vérification sur Wikipédia…';
         const wiki = await fetchWikipediaInfobox(r.article.value);
         if(!fArchitect.value.trim() && wiki.architect){ fArchitect.value = wiki.architect; filled.push('architecte (Wikipédia)'); }
         if(!fYear.value.trim() && wiki.year){ fYear.value = wiki.year; filled.push('année (Wikipédia)'); }
         if(!fAddress.value.trim() && wiki.address){ fAddress.value = wiki.address; filled.push('adresse (Wikipédia)'); }
+        if(!fPhoto.value.trim() && wiki.image){ fPhoto.value = wiki.image; filled.push('photo (Wikipédia)'); }
+      }
+      if(!fPhoto.value.trim() && r.commonscat){
+        autofillStatus.textContent = 'Recherche d\'une photo sur Wikimedia Commons…';
+        const commonsImg = await fetchCommonsFirstImage(r.commonscat.value);
+        if(commonsImg){ fPhoto.value = commonsImg; filled.push('photo (Wikimedia Commons)'); }
       }
       if(!fArchitect.value.trim()) notFound.push('architecte');
       if(!fYear.value.trim()) notFound.push('année');
+      if(!fPhoto.value.trim()) notFound.push('photo');
 
       if(!fAddress.value.trim()){
         // Ni Wikidata ni Wikipédia n'ont l'adresse : on la déduit des coordonnées du point déjà placé.
@@ -1300,10 +1348,11 @@
         }
       }
       let msg = filled.length
-        ? `Complété (Wikidata / Wikipédia) : ${[...new Set(filled)].join(', ')}.`
+        ? `Complété (Wikidata / Wikipédia / Commons) : ${[...new Set(filled)].join(', ')}.`
         : 'Fiche Wikidata trouvée, mais aucune donnée exploitable.';
       if(notFound.length) msg += ` Introuvable sur cette fiche : ${[...new Set(notFound)].join(', ')}.`;
       autofillStatus.textContent = msg;
+      updateModalBanner();
     }catch(e){
       autofillStatus.textContent = 'Échec de la recherche (réseau ou délai dépassé).';
     }finally{
@@ -1318,6 +1367,7 @@
     geocodeStatus.textContent=''; autofillStatus.textContent='';
     editPhotos = []; editPlans = []; editComments = []; editCollectionIds = [];
     renderPhotosList(); renderPlansList(); renderCommentsList(); renderCollectionChips();
+    updateModalBanner();
   }
 
   function openCreateModal(latlng){
@@ -1364,6 +1414,7 @@
     editComments = p.comments ? p.comments.slice() : [];
     editCollectionIds = p.collectionIds ? p.collectionIds.slice() : [];
     renderPhotosList(); renderPlansList(); renderCommentsList(); renderCollectionChips();
+    updateModalBanner();
     document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('modalTitle').textContent = p.title || 'Projet';
     document.getElementById('deleteBtn').style.display = 'inline';
