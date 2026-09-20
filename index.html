@@ -318,12 +318,12 @@
     display:block; font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase;
     letter-spacing:0.06em; color:#6E6E6E; margin-bottom:5px;
   }
-  .field input, .field textarea{
-    width:100%; padding:9px 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm);
+  .field input, .field textarea, .field select{
+    width:100%; padding:9px 10px; min-height:44px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm);
     font-family:'IBM Plex Sans'; font-size:13px; background:#fff; color:var(--text-on-paper);
     outline:none;
   }
-  .field input:focus, .field textarea:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(225,51,43,0.18);}
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--copper); box-shadow:0 0 0 3px rgba(225,51,43,0.18);}
   .field textarea{resize:vertical; min-height:50px;}
   .field-row{display:flex; gap:10px;}
   .field-row .field{flex:1;}
@@ -422,6 +422,87 @@
     border:2px solid var(--ink);
   }
 
+  /* Filters panel */
+  #filtersOverlay{
+    position:fixed; inset:0; background:rgba(11,20,33,0.75);
+    z-index:2000; display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+  }
+  #filtersOverlay.show{display:flex;}
+  #filtersModal{
+    width:460px; max-width:94vw; max-height:88vh; overflow-y:auto;
+    background:var(--paper); color:var(--text-on-paper);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+    display:flex; flex-direction:column;
+  }
+  #filtersModal .m-head{
+    padding:16px 20px; border-bottom:2px solid var(--copper);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #filtersModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #filtersModal .m-head .m-eyebrow{
+    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#6E6E6E; margin-bottom:3px;
+  }
+  #filtersModal .wd-body{padding:16px 20px;}
+  .filter-section{margin-top:18px;}
+  .filter-section:first-of-type{margin-top:12px;}
+  .filter-section-title{
+    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.06em;
+    color:#6E6E6E; margin-bottom:4px;
+  }
+  #moreBtn.has-active-filter::after{
+    content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
+    border-radius:50%; background:var(--copper); border:1.5px solid var(--ink);
+  }
+
+  /* Collections panel */
+  #collectionsOverlay{
+    position:fixed; inset:0; background:rgba(11,20,33,0.75);
+    z-index:2000; display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+  }
+  #collectionsOverlay.show{display:flex;}
+  #collectionsModal{
+    width:460px; max-width:94vw; max-height:88vh; overflow-y:auto;
+    background:var(--paper); color:var(--text-on-paper);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+    display:flex; flex-direction:column;
+  }
+  #collectionsModal .m-head{
+    padding:16px 20px; border-bottom:2px solid var(--copper);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #collectionsModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #collectionsModal .m-head .m-eyebrow{
+    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#6E6E6E; margin-bottom:3px;
+  }
+  #collectionsModal .wd-body{padding:16px 20px;}
+  .collections-list{margin-top:12px; display:flex; flex-direction:column; gap:2px;}
+  .collection-row{
+    display:flex; align-items:center; gap:10px; padding:10px 4px; min-height:44px;
+    border-bottom:1px solid var(--paper-dim);
+  }
+  .collection-row input[type=checkbox]{width:20px; height:20px; flex-shrink:0; accent-color:var(--copper);}
+  .collection-row .cr-name{flex:1; font-size:13px;}
+  .collection-row .cr-count{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E;}
+  .collection-row .cr-delete{
+    background:none; border:none; color:#6E6E6E; cursor:pointer; font-size:16px; min-height:0; padding:2px 4px;
+  }
+  .collection-row .cr-delete:hover{color:var(--danger);}
+  .collections-empty{font-size:12px; color:#6E6E6E; padding:12px 4px;}
+
+  .collection-chip-list{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
+  .collection-chip-list:empty::after{content:"Aucune collection créée pour l'instant."; font-size:11px; color:#6E6E6E;}
+  .collection-chip{
+    padding:6px 12px; min-height:32px; display:flex; align-items:center;
+    border-radius:var(--radius-full); border:1px solid var(--paper-dim);
+    background:#fff; color:var(--text-on-paper); font-size:12px; cursor:pointer;
+    transition:background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+  }
+  .collection-chip.active{background:var(--copper); border-color:var(--copper); color:var(--ink); font-weight:600;}
+
   /* Wikidata import panel */
 
   #wdOverlay{
@@ -518,6 +599,12 @@
       <span class="btn-icon" aria-hidden="true">⋯</span>
     </button>
     <div id="moreMenu" role="menu">
+      <button type="button" id="collectionsMenuBtn" role="menuitem">
+        <span aria-hidden="true">🗂</span> Collections
+      </button>
+      <button type="button" id="filtersMenuBtn" role="menuitem">
+        <span aria-hidden="true">▤</span> Filtres
+      </button>
       <button type="button" id="exportBtn" role="menuitem">
         <span aria-hidden="true">↓</span> Exporter les données (.json)
       </button>
@@ -588,6 +675,30 @@
             <input id="f-city" type="text" placeholder="ex. Lyon, France" />
           </div>
           <div class="field">
+            <label>Typologie</label>
+            <select id="f-typology">
+              <option value="">— Non renseignée —</option>
+              <option value="Musée">Musée</option>
+              <option value="Tour / gratte-ciel">Tour / gratte-ciel</option>
+              <option value="Logement">Logement</option>
+              <option value="Bureaux">Bureaux</option>
+              <option value="Équipement culturel">Équipement culturel</option>
+              <option value="Équipement sportif">Équipement sportif</option>
+              <option value="Religieux">Religieux</option>
+              <option value="Gare / transport">Gare / transport</option>
+              <option value="Infrastructure / pont">Infrastructure / pont</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Collections</label>
+            <div id="f-collections-list" class="collection-chip-list"></div>
+            <div class="field-row">
+              <input id="f-collection-input" type="text" placeholder="Nouvelle collection…" />
+              <button class="wd-btn" id="f-collection-add" type="button">Créer et ajouter</button>
+            </div>
+          </div>
+          <div class="field">
             <label>Lien vers l'article (worldarchitecture.org)</label>
             <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
           </div>
@@ -639,6 +750,54 @@
     <div class="m-actions">
       <button class="btn-danger" id="deleteBtn" style="display:none;">Supprimer ce projet</button>
       <button class="btn-primary" id="saveBtn">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="filtersOverlay">
+  <div id="filtersModal">
+    <div class="m-head">
+      <div>
+        <div class="m-eyebrow">Organisation</div>
+        <h2>Filtres</h2>
+      </div>
+      <button class="m-close" id="filtersClose" aria-label="Fermer">×</button>
+    </div>
+    <div class="wd-body">
+      <div class="hint">Combine plusieurs critères pour n'afficher qu'une partie des projets sur la carte. Se cumule avec les Collections.</div>
+      <div class="filter-section">
+        <div class="filter-section-title">Typologie</div>
+        <div id="filterTypologyList" class="collections-list"></div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Décennie</div>
+        <div id="filterDecadeList" class="collections-list"></div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Statut</div>
+        <div id="filterStatusList" class="collections-list"></div>
+      </div>
+      <button class="wd-btn" id="filtersResetBtn" type="button" style="margin-top:8px;">Réinitialiser tous les filtres</button>
+    </div>
+  </div>
+</div>
+
+<div id="collectionsOverlay">
+  <div id="collectionsModal">
+    <div class="m-head">
+      <div>
+        <div class="m-eyebrow">Organisation</div>
+        <h2>Collections</h2>
+      </div>
+      <button class="m-close" id="collectionsClose" aria-label="Fermer">×</button>
+    </div>
+    <div class="wd-body">
+      <div class="hint">Affiche ou masque des groupes de projets sur la carte. Un projet peut appartenir à plusieurs collections à la fois (à assigner depuis sa fiche).</div>
+      <div class="wd-row">
+        <input id="newCollectionInput" type="text" placeholder="Nouvelle collection, ex. Voyage Pays-Bas 2026" />
+        <button class="wd-btn" id="newCollectionAdd" type="button">Créer</button>
+      </div>
+      <div id="collectionsList" class="collections-list"></div>
     </div>
   </div>
 </div>
@@ -704,12 +863,19 @@
 <script>
 (function(){
   const STORAGE_KEY = 'wa-atlas-projects';
-  let projects = [];      // {id, title, architect, city, address, lat, lng, image, source, notes}
+  const COLLECTIONS_KEY = 'wa-atlas-collections';
+  let projects = [];      // {id, title, architect, city, address, lat, lng, image, source, notes, collectionIds}
+  let collections = [];   // {id, name}
+  let collectionFilter = null; // null = tout afficher ; sinon Set d'ids visibles ('__none__' = sans collection)
+  let typologyFilter = null;   // null = tout afficher ; sinon Set de typologies visibles ('__none__' = non renseignée)
+  let decadeFilter = null;     // null = tout afficher ; sinon Set de décennies visibles, ex. '2010s' ('__none__' = année inconnue)
+  let statusFilter = null;     // null = tout afficher ; sinon Set parmi 'visited' / 'notvisited'
   let markers = {};       // id -> leaflet marker
   let map, clusterGroup;
   let placingNew = false;
   let pendingLatLng = null;
   let editingId = null;
+  let editCollectionIds = [];
 
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
 
@@ -747,6 +913,54 @@
     }
   }
 
+  async function initCollections(){
+    try{
+      const raw = localStorage.getItem(COLLECTIONS_KEY);
+      collections = raw ? JSON.parse(raw) : [];
+    }catch(e){
+      collections = [];
+    }
+  }
+
+  async function persistCollections(){
+    try{
+      localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+    }catch(e){
+      showToast("Échec de l'enregistrement des collections.");
+    }
+  }
+
+  function decadeOf(year){
+    const m = String(year||'').match(/\d{4}/);
+    if(!m) return null;
+    return (Math.floor(parseInt(m[0],10)/10)*10) + 's';
+  }
+
+  function isProjectVisible(p){
+    if(collectionFilter){
+      const ids = (p.collectionIds && p.collectionIds.length) ? p.collectionIds : ['__none__'];
+      if(!ids.some(id => collectionFilter.has(id))) return false;
+    }
+    if(typologyFilter){
+      const typ = p.typology || '__none__';
+      if(!typologyFilter.has(typ)) return false;
+    }
+    if(decadeFilter){
+      const dec = decadeOf(p.year) || '__none__';
+      if(!decadeFilter.has(dec)) return false;
+    }
+    if(statusFilter){
+      const status = p.visited ? 'visited' : 'notvisited';
+      if(!statusFilter.has(status)) return false;
+    }
+    return true;
+  }
+
+  function updateFilterIndicator(){
+    const active = !!(collectionFilter || typologyFilter || decadeFilter || statusFilter);
+    document.getElementById('moreBtn').classList.toggle('has-active-filter', active);
+  }
+
   function showToast(msg, ms=2400){
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -778,6 +992,7 @@
   }
 
   function addMarkerToMap(p){
+    if(!isProjectVisible(p)) return;
     const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable:true});
     m.on('click', ()=> openEditModal(p.id));
     m.on('dragend', (e)=>{
@@ -868,6 +1083,7 @@
   const fArchitect = document.getElementById('f-architect');
   const fYear = document.getElementById('f-year');
   const fCity = document.getElementById('f-city');
+  const fTypology = document.getElementById('f-typology');
   const fAddress = document.getElementById('f-address');
   const fPhoto = document.getElementById('f-photo');
   const fSource = document.getElementById('f-source');
@@ -956,6 +1172,20 @@
     tab.onclick = ()=> switchModalTab(tab.dataset.mtab);
   });
 
+  function guessTypology(label){
+    const s = (label||'').toLowerCase();
+    if(/mus[ée]e|gallery|galerie/.test(s)) return 'Musée';
+    if(/skyscraper|tower|tour|gratte-ciel/.test(s)) return 'Tour / gratte-ciel';
+    if(/housing|apartment|résidence|logement|villa|house\b/.test(s)) return 'Logement';
+    if(/office|bureau/.test(s)) return 'Bureaux';
+    if(/theatre|théâtre|opera|opéra|concert|library|bibliothèque|cultural/.test(s)) return 'Équipement culturel';
+    if(/stadium|stade|arena|piscine|swimming|sport/.test(s)) return 'Équipement sportif';
+    if(/church|église|cathedral|cathédrale|mosque|mosquée|temple|synagogue|chapel|chapelle/.test(s)) return 'Religieux';
+    if(/station|gare|airport|aéroport|terminal/.test(s)) return 'Gare / transport';
+    if(/bridge|pont|dam|barrage|tower bridge|viaduct|viaduc/.test(s)) return 'Infrastructure / pont';
+    return '';
+  }
+
   document.getElementById('autofillBtn').onclick = async ()=>{
     const title = fTitle.value.trim();
     if(!title){ autofillStatus.textContent = "Saisissez d'abord un nom de bâtiment."; return; }
@@ -973,11 +1203,13 @@
       }
       const qid = data.search[0].id;
       const query = `
-        SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article WHERE {
+        SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article ?address ?type ?typeLabel WHERE {
           OPTIONAL { wd:${qid} wdt:P18 ?image . }
           OPTIONAL { wd:${qid} wdt:P571 ?date . }
           OPTIONAL { wd:${qid} wdt:P84 ?architect . }
           OPTIONAL { wd:${qid} wdt:P131 ?city . }
+          OPTIONAL { wd:${qid} wdt:P969 ?address . }
+          OPTIONAL { wd:${qid} wdt:P31 ?type . }
           OPTIONAL { ?article schema:about wd:${qid} ; schema:isPartOf <https://fr.wikipedia.org/> . }
           SERVICE wikibase:label { bd:serviceParam wikibase:language "fr,en". }
         }
@@ -992,6 +1224,27 @@
       if(!fCity.value.trim() && r.cityLabel){ fCity.value = r.cityLabel.value; filled.push('ville'); }
       if(!fPhoto.value.trim() && r.image){ fPhoto.value = r.image.value; filled.push('photo'); }
       if(!fSource.value.trim() && r.article){ fSource.value = r.article.value; filled.push('source'); }
+      if(!fTypology.value && r.typeLabel){
+        const guess = guessTypology(r.typeLabel.value);
+        if(guess){ fTypology.value = guess; filled.push('typologie'); }
+      }
+      if(!fAddress.value.trim() && r.address){
+        fAddress.value = r.address.value;
+        filled.push('adresse');
+      }else if(!fAddress.value.trim()){
+        // Wikidata ne donne pas toujours l'adresse : on la déduit des coordonnées du point déjà placé.
+        let coords = null;
+        if(editingId){
+          const proj = projects.find(x=>x.id===editingId);
+          if(proj) coords = {lat: proj.lat, lng: proj.lng};
+        }else if(pendingLatLng){
+          coords = {lat: pendingLatLng.lat, lng: pendingLatLng.lng};
+        }
+        if(coords){
+          const addr = await reverseGeocode(coords.lat, coords.lng);
+          if(addr && !fAddress.value.trim()){ fAddress.value = addr; filled.push('adresse (via la position)'); }
+        }
+      }
       autofillStatus.textContent = filled.length
         ? `Complété depuis Wikidata : ${[...new Set(filled)].join(', ')}. Vérifiez avant d'enregistrer.`
         : 'Fiche Wikidata trouvée, mais tous les champs étaient déjà renseignés.';
@@ -1004,11 +1257,11 @@
   };
 
   function clearForm(){
-    fTitle.value=''; fArchitect.value=''; fYear.value=''; fCity.value=''; fAddress.value=''; fPhoto.value='';
+    fTitle.value=''; fArchitect.value=''; fYear.value=''; fCity.value=''; fTypology.value=''; fAddress.value=''; fPhoto.value='';
     fSource.value=''; fNotes.value=''; fVisited.checked = false;
     geocodeStatus.textContent=''; autofillStatus.textContent='';
-    editPhotos = []; editPlans = []; editComments = [];
-    renderPhotosList(); renderPlansList(); renderCommentsList();
+    editPhotos = []; editPlans = []; editComments = []; editCollectionIds = [];
+    renderPhotosList(); renderPlansList(); renderCommentsList(); renderCollectionChips();
   }
 
   function openCreateModal(latlng){
@@ -1027,6 +1280,17 @@
     pendingLatLng = latlng || null;
     modalOverlay.classList.add('show');
     fTitle.focus();
+    if(latlng){
+      geocodeStatus.textContent = "Recherche de l'adresse…";
+      const requestedLatLng = latlng;
+      reverseGeocode(latlng.lat, latlng.lng).then(address=>{
+        // n'applique le résultat que si la fiche est toujours ouverte sur ce même point
+        if(modalOverlay.classList.contains('show') && pendingLatLng === requestedLatLng){
+          if(address){ fAddress.value = address; geocodeStatus.textContent = 'Adresse détectée automatiquement — modifiable.'; }
+          else{ geocodeStatus.textContent = ''; }
+        }
+      });
+    }
   }
 
   function openEditModal(id){
@@ -1034,7 +1298,7 @@
     if(!p) return;
     editingId = id;
     fTitle.value = p.title||''; fArchitect.value = p.architect||''; fYear.value = p.year||'';
-    fCity.value = p.city||''; fAddress.value = p.address||''; fSource.value = p.source||'';
+    fCity.value = p.city||''; fTypology.value = p.typology||''; fAddress.value = p.address||''; fSource.value = p.source||'';
     fNotes.value = p.notes||''; fVisited.checked = !!p.visited;
     geocodeStatus.textContent=''; autofillStatus.textContent='';
     const allImages = (p.images && p.images.length) ? p.images.slice() : (p.image ? [p.image] : []);
@@ -1042,7 +1306,8 @@
     editPhotos = allImages.slice(1);
     editPlans = p.plans ? p.plans.slice() : [];
     editComments = p.comments ? p.comments.slice() : [];
-    renderPhotosList(); renderPlansList(); renderCommentsList();
+    editCollectionIds = p.collectionIds ? p.collectionIds.slice() : [];
+    renderPhotosList(); renderPlansList(); renderCommentsList(); renderCollectionChips();
     document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('modalTitle').textContent = p.title || 'Projet';
     document.getElementById('deleteBtn').style.display = 'inline';
@@ -1092,10 +1357,10 @@
     if(editingId){
       const p = projects.find(x=>x.id===editingId);
       p.title=title; p.architect=fArchitect.value.trim(); p.year=fYear.value.trim(); p.city=fCity.value.trim();
-      p.address=fAddress.value.trim(); p.source=fSource.value.trim();
+      p.typology=fTypology.value; p.address=fAddress.value.trim(); p.source=fSource.value.trim();
       p.notes=fNotes.value.trim(); p.visited=fVisited.checked;
       p.images = allImages; p.image = allImages[0]||'';
-      p.plans = editPlans.slice(); p.comments = editComments.slice();
+      p.plans = editPlans.slice(); p.comments = editComments.slice(); p.collectionIds = editCollectionIds.slice();
       if(pendingLatLng){ p.lat=pendingLatLng.lat; p.lng=pendingLatLng.lng; }
       await persist();
       rebuildMarkers();
@@ -1106,9 +1371,9 @@
         return;
       }
       const p = {
-        id: uid(), title, architect: fArchitect.value.trim(), year: fYear.value.trim(), city: '',
+        id: uid(), title, architect: fArchitect.value.trim(), year: fYear.value.trim(), city: '', typology: fTypology.value,
         address: fAddress.value.trim(), lat: pendingLatLng.lat, lng: pendingLatLng.lng,
-        image: allImages[0]||'', images: allImages, plans: [], comments: [],
+        image: allImages[0]||'', images: allImages, plans: [], comments: [], collectionIds: editCollectionIds.slice(),
         source: '', notes: '', visited: false
       };
       projects.push(p);
@@ -1231,6 +1496,14 @@
     }
   }
 
+  async function reverseGeocode(lat, lng){
+    try{
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`;
+      const data = await fetchJson(url, {headers:{'Accept':'application/json'}}, 25000);
+      return (data && data.display_name) ? data.display_name : '';
+    }catch(e){ return ''; }
+  }
+
   async function sparqlQuery(query, timeoutMs){
     const url = 'https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query);
     const controller = new AbortController();
@@ -1308,7 +1581,7 @@
           address:'', lat: it.coord.lat, lng: it.coord.lng,
           image: it.image||'', images: it.image ? [it.image] : [],
           source: it.source || ('https://www.wikidata.org/wiki/'+qid),
-          notes: 'Importé depuis Wikidata.',
+          notes: '', collectionIds: [],
           wikidataId: qid
         };
         projects.push(project);
@@ -1566,12 +1839,190 @@
     }
   });
 
+  document.getElementById('collectionsMenuBtn').onclick = ()=>{
+    moreMenu.classList.remove('show');
+    renderCollectionsPanel();
+    document.getElementById('collectionsOverlay').classList.add('show');
+  };
+  document.getElementById('collectionsClose').onclick = ()=>{
+    document.getElementById('collectionsOverlay').classList.remove('show');
+  };
+  document.getElementById('collectionsOverlay').addEventListener('click', (e)=>{
+    if(e.target.id==='collectionsOverlay') document.getElementById('collectionsOverlay').classList.remove('show');
+  });
+
+  function renderCollectionsPanel(){
+    const el = document.getElementById('collectionsList');
+    const rows = [];
+    const noneCount = projects.filter(p=>!p.collectionIds || !p.collectionIds.length).length;
+    const noneChecked = !collectionFilter || collectionFilter.has('__none__');
+    rows.push(`
+      <div class="collection-row">
+        <input type="checkbox" data-cid="__none__" ${noneChecked ? 'checked' : ''} />
+        <span class="cr-name">Sans collection</span>
+        <span class="cr-count">${noneCount}</span>
+      </div>`);
+    collections.forEach(c=>{
+      const count = projects.filter(p=> p.collectionIds && p.collectionIds.includes(c.id)).length;
+      const checked = !collectionFilter || collectionFilter.has(c.id);
+      rows.push(`
+        <div class="collection-row">
+          <input type="checkbox" data-cid="${escapeHtml(c.id)}" ${checked ? 'checked' : ''} />
+          <span class="cr-name">${escapeHtml(c.name)}</span>
+          <span class="cr-count">${count}</span>
+          <button type="button" class="cr-delete" data-delete="${escapeHtml(c.id)}" aria-label="Supprimer la collection">×</button>
+        </div>`);
+    });
+    el.innerHTML = collections.length ? rows.join('') : (rows.join('') + `<div class="collections-empty">Aucune collection créée — ajoute la première ci-dessus, ou depuis la fiche d'un projet.</div>`);
+
+    el.querySelectorAll('input[type=checkbox][data-cid]').forEach(cb=>{
+      cb.onchange = ()=>{
+        const allBoxes = Array.from(el.querySelectorAll('input[type=checkbox][data-cid]'));
+        const checkedIds = allBoxes.filter(b=>b.checked).map(b=>b.dataset.cid);
+        collectionFilter = (checkedIds.length === allBoxes.length) ? null : new Set(checkedIds);
+        updateFilterIndicator();
+        rebuildMarkers();
+      };
+    });
+    el.querySelectorAll('button[data-delete]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const cid = btn.dataset.delete;
+        const c = collections.find(x=>x.id===cid);
+        if(!confirm(`Supprimer la collection "${c ? c.name : ''}" ? Les projets qu'elle contient ne seront pas supprimés.`)) return;
+        collections = collections.filter(x=>x.id!==cid);
+        projects.forEach(p=>{ if(p.collectionIds) p.collectionIds = p.collectionIds.filter(id=>id!==cid); });
+        if(collectionFilter) collectionFilter.delete(cid);
+        await persistCollections();
+        await persist();
+        renderCollectionsPanel();
+        updateFilterIndicator();
+        rebuildMarkers();
+      };
+    });
+  }
+
+  document.getElementById('newCollectionAdd').onclick = async ()=>{
+    const input = document.getElementById('newCollectionInput');
+    const name = input.value.trim();
+    if(!name) return;
+    collections.push({id: uid(), name});
+    input.value = '';
+    await persistCollections();
+    renderCollectionsPanel();
+  };
+
+  // ---- Filters panel ----
+  document.getElementById('filtersMenuBtn').onclick = ()=>{
+    moreMenu.classList.remove('show');
+    renderFiltersPanel();
+    document.getElementById('filtersOverlay').classList.add('show');
+  };
+  document.getElementById('filtersClose').onclick = ()=>{
+    document.getElementById('filtersOverlay').classList.remove('show');
+  };
+  document.getElementById('filtersOverlay').addEventListener('click', (e)=>{
+    if(e.target.id==='filtersOverlay') document.getElementById('filtersOverlay').classList.remove('show');
+  });
+
+  function renderFilterGroup(containerId, options, currentFilter, onChange){
+    // options: [{id, label, count}]
+    const el = document.getElementById(containerId);
+    if(!options.length){
+      el.innerHTML = `<div class="collections-empty">Aucune donnée pour l'instant.</div>`;
+      return;
+    }
+    el.innerHTML = options.map(o=>{
+      const checked = !currentFilter || currentFilter.has(o.id);
+      return `
+        <div class="collection-row">
+          <input type="checkbox" data-fid="${escapeHtml(o.id)}" ${checked ? 'checked' : ''} />
+          <span class="cr-name">${escapeHtml(o.label)}</span>
+          <span class="cr-count">${o.count}</span>
+        </div>`;
+    }).join('');
+    el.querySelectorAll('input[type=checkbox][data-fid]').forEach(cb=>{
+      cb.onchange = ()=>{
+        const allBoxes = Array.from(el.querySelectorAll('input[type=checkbox][data-fid]'));
+        const checkedIds = allBoxes.filter(b=>b.checked).map(b=>b.dataset.fid);
+        onChange(checkedIds.length === allBoxes.length ? null : new Set(checkedIds));
+        updateFilterIndicator();
+        rebuildMarkers();
+      };
+    });
+  }
+
+  function renderFiltersPanel(){
+    // Typologie : uniquement les valeurs présentes dans les données
+    const typoCounts = {};
+    projects.forEach(p=>{ const t = p.typology || '__none__'; typoCounts[t] = (typoCounts[t]||0)+1; });
+    const typoOptions = Object.keys(typoCounts)
+      .filter(t=>t!=='__none__')
+      .sort()
+      .map(t=>({id:t, label:t, count:typoCounts[t]}));
+    if(typoCounts['__none__']) typoOptions.push({id:'__none__', label:'Non renseignée', count: typoCounts['__none__']});
+    renderFilterGroup('filterTypologyList', typoOptions, typologyFilter, (v)=>{ typologyFilter = v; });
+
+    // Décennie
+    const decCounts = {};
+    projects.forEach(p=>{ const d = decadeOf(p.year) || '__none__'; decCounts[d] = (decCounts[d]||0)+1; });
+    const decOptions = Object.keys(decCounts)
+      .filter(d=>d!=='__none__')
+      .sort()
+      .map(d=>({id:d, label:d, count:decCounts[d]}));
+    if(decCounts['__none__']) decOptions.push({id:'__none__', label:'Année inconnue', count: decCounts['__none__']});
+    renderFilterGroup('filterDecadeList', decOptions, decadeFilter, (v)=>{ decadeFilter = v; });
+
+    // Statut
+    const visitedCount = projects.filter(p=>p.visited).length;
+    const notVisitedCount = projects.length - visitedCount;
+    const statusOptions = [
+      {id:'visited', label:'Visité', count: visitedCount},
+      {id:'notvisited', label:'Non visité', count: notVisitedCount}
+    ];
+    renderFilterGroup('filterStatusList', statusOptions, statusFilter, (v)=>{ statusFilter = v; });
+  }
+
+  document.getElementById('filtersResetBtn').onclick = ()=>{
+    typologyFilter = null; decadeFilter = null; statusFilter = null; collectionFilter = null;
+    renderFiltersPanel();
+    updateFilterIndicator();
+    rebuildMarkers();
+    showToast('Filtres réinitialisés.');
+  };
+
+  function renderCollectionChips(){
+    const el = document.getElementById('f-collections-list');
+    el.innerHTML = collections.map(c=>`
+      <button type="button" class="collection-chip ${editCollectionIds.includes(c.id) ? 'active' : ''}" data-cid="${escapeHtml(c.id)}">${escapeHtml(c.name)}</button>
+    `).join('');
+    el.querySelectorAll('.collection-chip').forEach(chip=>{
+      chip.onclick = ()=>{
+        const cid = chip.dataset.cid;
+        if(editCollectionIds.includes(cid)) editCollectionIds = editCollectionIds.filter(id=>id!==cid);
+        else editCollectionIds.push(cid);
+        renderCollectionChips();
+      };
+    });
+  }
+
+  document.getElementById('f-collection-add').onclick = async ()=>{
+    const input = document.getElementById('f-collection-input');
+    const name = input.value.trim();
+    if(!name) return;
+    const c = {id: uid(), name};
+    collections.push(c);
+    editCollectionIds.push(c.id);
+    input.value = '';
+    await persistCollections();
+    renderCollectionChips();
+  };
+
   document.getElementById('exportBtn').onclick = ()=>{
     moreMenu.classList.remove('show');
     const payload = {
       app: 'atlas-architecture', version: 1,
       exportedAt: new Date().toISOString(),
-      projects
+      projects, collections
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
@@ -1610,6 +2061,17 @@
         if(p.id) existingIds.add(p.id);
         newlyAdded.push(project);
       });
+      let newCollections = 0;
+      if(Array.isArray(data.collections)){
+        const existingCollectionIds = new Set(collections.map(c=>c.id));
+        data.collections.forEach(c=>{
+          if(!c || !c.id || existingCollectionIds.has(c.id)) return;
+          collections.push({id: c.id, name: c.name || 'Sans nom'});
+          existingCollectionIds.add(c.id);
+          newCollections++;
+        });
+        if(newCollections) await persistCollections();
+      }
       await persist();
       newlyAdded.forEach(addMarkerToMap);
       showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s) depuis le fichier.` : 'Aucun nouveau projet dans ce fichier (déjà présents).');
@@ -1623,6 +2085,7 @@
     try{
       initMap();
       await initStorage();
+      await initCollections();
       seedIfEmpty();
       await persist();
       rebuildMarkers();

@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.0
+### Ajouté
+- Collections : regroupement de projets en ensembles nommés, affichables/masquables sur la carte, appartenance multiple par projet.
+- Filtres par typologie, décennie et statut visité, cumulables avec les collections ; indicateur visuel quand un filtre est actif.
+- Champ Typologie sur chaque projet, avec suggestion automatique (via Wikidata P31) dans « Compléter automatiquement ».
+- Géocodage inversé : l'adresse se déduit automatiquement des coordonnées à la création par clic carte, et via la recherche automatique.
+- Export/import JSON étendu aux collections.
+
+### Corrigé
+- Le champ Notes n'est plus rempli automatiquement d'un texte de provenance à l'import Wikidata en masse.
+
 ## 1.4.0
 ### Corrigé
 - Fond de carte : `maxZoom` manquant sur l'instance Leaflet, requis par le binding MapLibre GL Leaflet — cause racine des plantages de carte observés depuis plusieurs versions.

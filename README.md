@@ -15,6 +15,8 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 - **Recherche automatique** — bouton « Compléter automatiquement » qui va chercher sur Wikidata l'architecte, l'année, la ville, la photo et le lien source manquants, sans écraser les champs déjà renseignés
 - **Enrichissement libre** — photos multiples, plans/documents (libellé + lien), commentaires horodatés (journal cumulatif), notes, ville, lien source
 - **Recherche** — par nom, architecte ou ville, navigable au clavier
+- **Collections** — regrouper des projets dans des ensembles nommés, affichables/masquables indépendamment sur la carte ; un projet peut appartenir à plusieurs collections
+- **Filtres** — par typologie, décennie de réalisation et statut visité/non visité, combinables entre eux et avec les collections
 - **Import automatique depuis Wikidata** — par architecte, par lieu (rayon réglable), ou par année d'achèvement/ouverture ; lien de recherche rapide vers **Structurae** sur chaque fiche
 - **Export / import JSON** — sauvegarde et restauration de toutes les données depuis le menu « ⋯ », pour ne rien perdre lors des mises à jour de l'app
 - **Accessibilité** — focus clavier visible, cibles tactiles 44px, contraste AA, `aria-label` sur les contrôles, zones sûres iPhone, respect de `prefers-reduced-motion`
