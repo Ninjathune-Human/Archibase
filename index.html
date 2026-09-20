@@ -1172,6 +1172,45 @@
     tab.onclick = ()=> switchModalTab(tab.dataset.mtab);
   });
 
+  function extractInfoboxField(wikitext, fieldNames){
+    const pattern = new RegExp('\\|\\s*(?:'+fieldNames.join('|')+')\\s*=\\s*([^\\n]+)', 'i');
+    const m = wikitext.match(pattern);
+    if(!m) return '';
+    return m[1]
+      .replace(/\{\{[^{}]*\}\}/g, ' ')            // gabarits imbriqués simples, ex. {{Start date|2015}}
+      .replace(/\[\[([^\]|]*\|)?([^\]]*)\]\]/g, '$2')  // liens wiki [[cible|texte]] → texte
+      .replace(/<ref[^>]*>.*?<\/ref>/gi, '')       // notes de bas de page
+      .replace(/<[^>]+>/g, ' ')                    // balises HTML restantes
+      .replace(/'''?/g, '')                        // gras/italique wiki
+      .split('|')[0]
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async function fetchWikipediaInfobox(articleUrl){
+    const m = articleUrl.match(/^https?:\/\/(\w+)\.wikipedia\.org\/wiki\/([^?#]+)/);
+    if(!m) return {};
+    const lang = m[1], title = decodeURIComponent(m[2].replace(/_/g,' '));
+    try{
+      const api = `https://${lang}.wikipedia.org/w/api.php?action=query&prop=revisions&titles=${encodeURIComponent(title)}&rvslots=main&rvprop=content&format=json&origin=*`;
+      const data = await fetchJson(api, {}, 25000);
+      const pages = data.query && data.query.pages;
+      if(!pages) return {};
+      const page = Object.values(pages)[0];
+      const content = page && page.revisions && page.revisions[0] && page.revisions[0].slots && page.revisions[0].slots.main && page.revisions[0].slots.main['*'];
+      if(!content) return {};
+      const result = {};
+      const yearRaw = extractInfoboxField(content, ['completion_date','construction_end_date','opened','inauguration','year_completed','date de construction','année','achèvement','date d\'achèvement']);
+      const yearMatch = yearRaw.match(/\d{4}/);
+      if(yearMatch) result.year = yearMatch[0];
+      const addr = extractInfoboxField(content, ['address','location','adresse']);
+      if(addr) result.address = addr;
+      const arch = extractInfoboxField(content, ['architect','architecte']);
+      if(arch) result.architect = arch;
+      return result;
+    }catch(e){ return {}; }
+  }
+
   function guessTypology(label){
     const s = (label||'').toLowerCase();
     if(/mus[ée]e|gallery|galerie/.test(s)) return 'Musée';
@@ -1219,20 +1258,32 @@
       if(!rows.length){ autofillStatus.textContent = 'Fiche Wikidata trouvée, mais sans détails exploitables.'; return; }
       const r = rows[0];
       const filled = [];
+      const notFound = [];
       if(!fArchitect.value.trim() && r.architectLabel){ fArchitect.value = r.architectLabel.value; filled.push('architecte'); }
       if(!fYear.value.trim() && r.date){ fYear.value = r.date.value.slice(0,4); filled.push('année'); }
-      if(!fCity.value.trim() && r.cityLabel){ fCity.value = r.cityLabel.value; filled.push('ville'); }
-      if(!fPhoto.value.trim() && r.image){ fPhoto.value = r.image.value; filled.push('photo'); }
-      if(!fSource.value.trim() && r.article){ fSource.value = r.article.value; filled.push('source'); }
-      if(!fTypology.value && r.typeLabel){
-        const guess = guessTypology(r.typeLabel.value);
-        if(guess){ fTypology.value = guess; filled.push('typologie'); }
+      if(!fCity.value.trim()){ if(r.cityLabel){ fCity.value = r.cityLabel.value; filled.push('ville'); } else notFound.push('ville'); }
+      if(!fPhoto.value.trim()){ if(r.image){ fPhoto.value = r.image.value; filled.push('photo'); } else notFound.push('photo'); }
+      if(!fSource.value.trim()){ if(r.article){ fSource.value = r.article.value; filled.push('source'); } else notFound.push('source'); }
+      if(!fTypology.value){
+        const guess = r.typeLabel ? guessTypology(r.typeLabel.value) : '';
+        if(guess){ fTypology.value = guess; filled.push('typologie'); } else notFound.push('typologie');
       }
-      if(!fAddress.value.trim() && r.address){
-        fAddress.value = r.address.value;
-        filled.push('adresse');
-      }else if(!fAddress.value.trim()){
-        // Wikidata ne donne pas toujours l'adresse : on la déduit des coordonnées du point déjà placé.
+      if(!fAddress.value.trim() && r.address){ fAddress.value = r.address.value; filled.push('adresse'); }
+
+      // Croisement avec l'infobox Wikipédia si Wikidata n'a pas tout : source secondaire,
+      // souvent plus complète sur la date d'achèvement et l'adresse que les données structurées.
+      if(r.article && (!fArchitect.value.trim() || !fYear.value.trim() || !fAddress.value.trim())){
+        autofillStatus.textContent = 'Recherche sur Wikidata… puis vérification sur Wikipédia…';
+        const wiki = await fetchWikipediaInfobox(r.article.value);
+        if(!fArchitect.value.trim() && wiki.architect){ fArchitect.value = wiki.architect; filled.push('architecte (Wikipédia)'); }
+        if(!fYear.value.trim() && wiki.year){ fYear.value = wiki.year; filled.push('année (Wikipédia)'); }
+        if(!fAddress.value.trim() && wiki.address){ fAddress.value = wiki.address; filled.push('adresse (Wikipédia)'); }
+      }
+      if(!fArchitect.value.trim()) notFound.push('architecte');
+      if(!fYear.value.trim()) notFound.push('année');
+
+      if(!fAddress.value.trim()){
+        // Ni Wikidata ni Wikipédia n'ont l'adresse : on la déduit des coordonnées du point déjà placé.
         let coords = null;
         if(editingId){
           const proj = projects.find(x=>x.id===editingId);
@@ -1243,11 +1294,16 @@
         if(coords){
           const addr = await reverseGeocode(coords.lat, coords.lng);
           if(addr && !fAddress.value.trim()){ fAddress.value = addr; filled.push('adresse (via la position)'); }
+          else notFound.push('adresse');
+        }else{
+          notFound.push('adresse (aucune épingle placée)');
         }
       }
-      autofillStatus.textContent = filled.length
-        ? `Complété depuis Wikidata : ${[...new Set(filled)].join(', ')}. Vérifiez avant d'enregistrer.`
-        : 'Fiche Wikidata trouvée, mais tous les champs étaient déjà renseignés.';
+      let msg = filled.length
+        ? `Complété (Wikidata / Wikipédia) : ${[...new Set(filled)].join(', ')}.`
+        : 'Fiche Wikidata trouvée, mais aucune donnée exploitable.';
+      if(notFound.length) msg += ` Introuvable sur cette fiche : ${[...new Set(notFound)].join(', ')}.`;
+      autofillStatus.textContent = msg;
     }catch(e){
       autofillStatus.textContent = 'Échec de la recherche (réseau ou délai dépassé).';
     }finally{

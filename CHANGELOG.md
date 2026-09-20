@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.1
+### Ajouté
+- « Compléter automatiquement » croise désormais Wikidata puis l'infobox de l'article Wikipédia associé (architecte, année, adresse) avant de recourir au géocodage inversé — Wikidata seule est souvent incomplète sur la date d'achèvement et l'adresse.
+- Message de statut détaillé : indique la source de chaque champ complété et liste explicitement ce qui reste introuvable après recherche.
+
 ## 1.5.0
 ### Ajouté
 - Collections : regroupement de projets en ensembles nommés, affichables/masquables sur la carte, appartenance multiple par projet.
