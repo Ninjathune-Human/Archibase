@@ -35,6 +35,22 @@ Une base de bâtiments d'architecte (avec architecte, coordonnées et photo sur 
 
 **Premier lancement** : onglet *Actions* du dépôt → *Base de référence Wikidata* → *Run workflow*. Si l'étape de commit échoue avec une erreur de permission : *Settings → Actions → General → Workflow permissions → Read and write permissions*.
 
+## Synchronisation entre appareils
+
+Le relevé personnel (projets, collections) peut être synchronisé entre plusieurs appareils via un fichier JSON stocké dans un **dépôt GitHub privé**, distinct de ce dépôt public.
+
+- Fusion projet par projet : la version la plus récente de chaque projet l'emporte ; deux appareils modifiant des projets différents ne s'écrasent pas
+- Les suppressions sont mémorisées, pour qu'un autre appareil ne fasse pas réapparaître un projet supprimé
+- Déclenchement : au démarrage, quelques secondes après chaque modification, au retour sur l'app, au retour du réseau, ou manuellement
+- Hors connexion, tout reste enregistré sur l'appareil et part à la synchronisation suivante
+
+**Mise en place (une fois)**
+1. Créer un dépôt **privé** sur GitHub, par exemple `archibase-data`
+2. Créer un jeton *fine-grained* (Settings → Developer settings → Personal access tokens → Fine-grained tokens) limité à ce dépôt, avec la permission *Contents : Read and write*
+3. Sur chaque appareil : menu ⇅ → Synchronisation → saisir le dépôt et le jeton
+
+Le jeton est conservé uniquement sur l'appareil ; ne pas le saisir sur un appareil partagé.
+
 ## Déploiement
 
 Ce dépôt contient un unique fichier `index.html` autonome.
@@ -48,7 +64,7 @@ Ce dépôt contient un unique fichier `index.html` autonome.
 - Pas de récupération automatique des projets depuis worldarchitecture.org (pas d'API publique) — l'ajout d'image/lien depuis ce site se fait manuellement.
 - Pas d'import automatique depuis Structurae (pas d'API gratuite) — lien de recherche rapide fourni à la place.
 - L'import et la recherche automatique dépendent de la couverture et de la qualité des données Wikidata.
-- Les données sont stockées par navigateur/appareil — utiliser l'export/import JSON pour transférer ou sauvegarder.
+- Sans synchronisation configurée, les données restent propres à chaque navigateur ; l'export/import JSON permet alors de les transférer.
 
 ## Stack
 

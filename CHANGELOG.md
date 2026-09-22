@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.9.0
+### Ajouté
+- Synchronisation multi-appareils du relevé personnel via un dépôt GitHub privé (menu ⇅ → Synchronisation) : fusion projet par projet sur la date de modification, suppressions mémorisées, gestion des conflits d'écriture, fonctionnement hors ligne avec envoi au retour du réseau.
+- Pastille d'alerte sur le bouton ⇅ en cas d'échec de synchronisation ; avertissement si le dépôt choisi est public.
+
+### Changé
+- Les exemples de démonstration ne sont jamais synchronisés et disparaissent dès que de vrais projets existent ; un exemple modifié par l'utilisateur devient un projet à part entière.
+- Workflow de la base de référence : limite de temps portée à 330 min (92 000 bâtiments).
+
 ## 1.8.0
 ### Ajouté
 - Base de référence préconstruite : bâtiments Wikidata avec architecte, coordonnées et photo, reconstruits chaque semaine par GitHub Actions (`data/build/build.mjs`, `.github/workflows/build-reference.yml`) et publiés dans `data/reference.json`.

@@ -486,6 +486,41 @@
     border-radius:50%; background:var(--copper); border:1.5px solid var(--ink);
   }
 
+  /* Sync panel */
+  #syncOverlay{
+    position:fixed; inset:0; background:rgba(11,20,33,0.75);
+    z-index:2000; display:none; align-items:center; justify-content:center;
+    backdrop-filter:blur(2px);
+  }
+  #syncOverlay.show{display:flex;}
+  #syncModal{
+    width:460px; max-width:94vw; max-height:88vh; overflow-y:auto;
+    background:var(--paper); color:var(--text-on-paper);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+  }
+  #syncModal .m-head{
+    padding:16px 20px; border-bottom:2px solid var(--copper);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #syncModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #syncModal .m-head .m-eyebrow{
+    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
+    color:#6E6E6E; margin-bottom:3px;
+  }
+  #syncModal .wd-body{padding:16px 20px;}
+  .sync-status{
+    font-family:'IBM Plex Mono'; font-size:11px; color:#4D4D4D;
+    padding:10px 12px; margin-bottom:14px; border-radius:var(--radius-sm);
+    background:#F3F2EE; border-left:3px solid #9A9A9A;
+  }
+  .sync-status.ok{border-left-color:#2E7D4F;}
+  .sync-status.error{border-left-color:var(--danger); color:var(--danger);}
+  .sync-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 16px;}
+  #dataBtn.sync-error::after{
+    content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
+    border-radius:50%; background:var(--danger); border:1.5px solid var(--ink);
+  }
+
   /* Collections panel */
   #collectionsOverlay{
     position:fixed; inset:0; background:rgba(11,20,33,0.75);
@@ -664,6 +699,9 @@
       <span class="btn-icon" aria-hidden="true">⇅</span>
     </button>
     <div id="dataMenu" role="menu">
+      <button type="button" id="syncMenuBtn" role="menuitem">
+        <span aria-hidden="true">⟳</span> <span id="syncMenuLabel">Synchronisation…</span>
+      </button>
       <button type="button" id="exportBtn" role="menuitem">
         <span aria-hidden="true">↓</span> Exporter les données (.json)
       </button>
@@ -844,6 +882,42 @@
   </div>
 </div>
 
+<div id="syncOverlay">
+  <div id="syncModal">
+    <div class="m-head">
+      <div>
+        <div class="m-eyebrow">Données</div>
+        <h2>Synchronisation</h2>
+      </div>
+      <button class="m-close" id="syncClose" aria-label="Fermer">×</button>
+    </div>
+    <div class="wd-body">
+      <div id="syncStatus" class="sync-status">Non configurée : les données restent sur cet appareil.</div>
+      <div class="field">
+        <label for="syncRepo">Dépôt GitHub privé</label>
+        <input id="syncRepo" type="text" placeholder="Ninjathune-Human/archibase-data" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="syncToken">Jeton d'accès</label>
+        <input id="syncToken" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="syncPath">Fichier</label>
+        <input id="syncPath" type="text" value="atlas-data.json" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="sync-actions">
+        <button class="btn-primary" id="syncConnect" type="button">Enregistrer et synchroniser</button>
+        <button class="wd-btn" id="syncNow" type="button">Synchroniser maintenant</button>
+        <button class="btn-danger" id="syncDisconnect" type="button">Déconnecter cet appareil</button>
+      </div>
+      <div class="hint">
+        À faire une seule fois : créer un dépôt <strong>privé</strong> sur GitHub, puis un jeton « fine-grained » limité à ce dépôt, avec la permission <em>Contents : Read and write</em>. Saisir ensuite le même dépôt et le même jeton sur chaque appareil.<br><br>
+        Le jeton reste enregistré sur cet appareil uniquement : ne pas l'utiliser sur un appareil partagé.
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="collectionsOverlay">
   <div id="collectionsModal">
     <div class="m-head">
@@ -940,6 +1014,13 @@
   let editingId = null;
   let editCollectionIds = [];
   let pendingWikidataId = null; // bâtiment ouvert depuis la base de référence, en attente d'ajout
+  // Synchronisation multi-appareils (dépôt GitHub privé)
+  const SYNC_KEY = 'wa-atlas-sync';
+  const TOMB_KEY = 'wa-atlas-tombstones';
+  let syncConfig = null;          // {repo:'propriétaire/nom', path, token}
+  let tombstones = {projects:{}, collections:{}}; // suppressions mémorisées : id -> horodatage
+  let projectSnapshot = new Map();    // id -> état enregistré, pour détecter les modifications
+  let collectionSnapshot = new Map();
 
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
 
@@ -960,21 +1041,52 @@
     });
   }
 
+  // Contenu d'un élément sans sa date : sert à détecter une vraie modification
+  function stateKey(o){ const {updatedAt, ...rest} = o; return JSON.stringify(rest); }
+  function snapshotOf(list){ return new Map(list.map(o=> [o.id, stateKey(o)])); }
+
+  // Date les éléments modifiés et mémorise les suppressions, par comparaison avec le dernier état enregistré
+  function stampChanges(list, snapshot, tombs){
+    const now = Date.now();
+    const ids = new Set();
+    list.forEach(o=>{
+      ids.add(o.id);
+      if(snapshot.get(o.id) !== stateKey(o)) o.updatedAt = now;
+    });
+    snapshot.forEach((_, id)=>{ if(!ids.has(id)) tombs[id] = now; });
+    return snapshotOf(list);
+  }
+
+  function saveTombstones(){
+    try{ localStorage.setItem(TOMB_KEY, JSON.stringify(tombstones)); }catch(e){}
+  }
+
   async function initStorage(){
+    try{ syncConfig = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); }catch(e){ syncConfig = null; }
+    try{
+      const t = JSON.parse(localStorage.getItem(TOMB_KEY) || 'null');
+      tombstones = {projects: (t && t.projects) || {}, collections: (t && t.collections) || {}};
+    }catch(e){ tombstones = {projects:{}, collections:{}}; }
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
       projects = raw ? JSON.parse(raw) : [];
     }catch(e){
       projects = [];
     }
+    // Les exemples de démonstration ne sont jamais synchronisés (sinon ils se dupliqueraient sur chaque appareil)
+    projects.forEach(p=>{ if(!p.seed && /^Exemple pré-chargé/.test(p.notes||'')) p.seed = true; });
+    projectSnapshot = snapshotOf(projects);
   }
 
   async function persist(){
+    projectSnapshot = stampChanges(projects, projectSnapshot, tombstones.projects);
     try{
       localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      saveTombstones();
     }catch(e){
       showToast("Échec de l'enregistrement local.");
     }
+    scheduleSync();
   }
 
   async function initCollections(){
@@ -984,14 +1096,18 @@
     }catch(e){
       collections = [];
     }
+    collectionSnapshot = snapshotOf(collections);
   }
 
   async function persistCollections(){
+    collectionSnapshot = stampChanges(collections, collectionSnapshot, tombstones.collections);
     try{
       localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+      saveTombstones();
     }catch(e){
       showToast("Échec de l'enregistrement des collections.");
     }
+    scheduleSync();
   }
 
   function decadeOf(year){
@@ -1624,6 +1740,12 @@
 
     if(editingId){
       const p = projects.find(x=>x.id===editingId);
+      if(!p){
+        showToast('Ce projet a été supprimé depuis un autre appareil.');
+        closeModal();
+        return;
+      }
+      delete p.seed; // un exemple modifié devient un vrai projet, donc synchronisé
       p.title=title; p.architect=fArchitect.value.trim(); p.year=fYear.value.trim(); p.city=fCity.value.trim();
       p.typology=fTypology.value; p.address=fAddress.value.trim(); p.source=fSource.value.trim();
       p.notes=fNotes.value.trim(); p.visited=fVisited.checked;
@@ -2128,19 +2250,19 @@
         id: uid(), title:'Shenzhen Science & Technology Museum', architect:'Zaha Hadid Architects', city:'Shenzhen, Chine',
         address:'', lat:22.7469, lng:113.8945,
         image:'', source:'https://worldarchitecture.org/architecture-news/fppef/the-top-10-architecture-news-of-2025.html',
-        notes:'Exemple pré-chargé — remplacez l\'image par l\'URL réelle trouvée sur la fiche worldarchitecture.org.'
+        notes:'Exemple pré-chargé — remplacez l\'image par l\'URL réelle trouvée sur la fiche worldarchitecture.org.', seed:true
       },
       {
         id: uid(), title:'Memphis Art Museum', architect:'Herzog & de Meuron', city:'Memphis, Tennessee, USA',
         address:'', lat:35.1495, lng:-90.0490,
         image:'', source:'https://worldarchitecture.org/architecture-news/fppmf/top-12-exciting-architecture-projects-expected-to-open-in-2026.html',
-        notes:'Exemple pré-chargé — ouverture prévue déc. 2026.'
+        notes:'Exemple pré-chargé — ouverture prévue déc. 2026.', seed:true
       },
       {
         id: uid(), title:'V&A East Museum', architect:"O'Donnell + Tuomey", city:'Queen Elizabeth Olympic Park, Londres',
         address:'', lat:51.5433, lng:-0.0119,
         image:'', source:'https://worldarchitecture.org/architecture-news/fppmf/top-12-exciting-architecture-projects-expected-to-open-in-2026.html',
-        notes:'Exemple pré-chargé — ouverture le 18 avril 2026.'
+        notes:'Exemple pré-chargé — ouverture le 18 avril 2026.', seed:true
       }
     ];
   }
@@ -2543,6 +2665,245 @@
     rebuildReferenceLayer();
   };
 
+  // ---- Synchronisation multi-appareils : fichier JSON dans un dépôt GitHub privé ----
+  // Fusion projet par projet : la version la plus récente l'emporte ; une suppression est mémorisée
+  // (« pierre tombale ») pour qu'un autre appareil ne fasse pas réapparaître le projet.
+  const TOMB_MAX_AGE = 180 * 24 * 3600 * 1000; // suppressions oubliées après 6 mois
+  let syncTimer = null, syncing = false, syncAgain = false;
+
+  function b64encode(str){
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+  function b64decode(b64){
+    const bin = atob(b64.replace(/\s/g, ''));
+    return new TextDecoder().decode(Uint8Array.from(bin, c=> c.charCodeAt(0)));
+  }
+  // Sérialisation à clés triées : comparer deux états sans dépendre de l'ordre d'insertion
+  function stableStringify(v){
+    if(Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+    if(v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k=> JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+    return JSON.stringify(v);
+  }
+
+  async function ghFetch(url, opts, timeoutMs){
+    const controller = new AbortController();
+    const timer = setTimeout(()=> controller.abort(), timeoutMs || 25000);
+    try{
+      return await fetch(url, {...opts, cache: 'no-store', signal: controller.signal, headers: {
+        'Authorization': 'Bearer ' + syncConfig.token,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...((opts && opts.headers) || {})
+      }});
+    }finally{ clearTimeout(timer); }
+  }
+  function contentsUrl(){
+    const path = syncConfig.path.split('/').map(encodeURIComponent).join('/');
+    return `https://api.github.com/repos/${syncConfig.repo}/contents/${path}`;
+  }
+  async function ghError(res){
+    if(res.status === 401) return new Error('Jeton refusé : vérifie qu\'il est correct et non expiré.');
+    if(res.status === 403) return new Error('Accès refusé : le jeton doit avoir la permission « Contents : Read and write » sur ce dépôt.');
+    if(res.status === 404) return new Error('Dépôt introuvable : vérifie le nom, et que le jeton donne accès à ce dépôt.');
+    let msg = '';
+    try{ msg = (await res.json()).message || ''; }catch(e){}
+    return new Error(`Erreur GitHub ${res.status}${msg ? ' : ' + msg : ''}`);
+  }
+
+  async function ghGet(){
+    const res = await ghFetch(contentsUrl(), {method: 'GET'});
+    if(res.status === 404){
+      // Fichier absent (premier appareil) ou dépôt inaccessible : on distingue les deux cas
+      const repoRes = await ghFetch(`https://api.github.com/repos/${syncConfig.repo}`, {method: 'GET'});
+      if(!repoRes.ok) throw await ghError(repoRes);
+      return {sha: null, data: null};
+    }
+    if(!res.ok) throw await ghError(res);
+    const meta = await res.json();
+    let text;
+    if(meta.content && meta.encoding === 'base64'){
+      text = b64decode(meta.content);
+    }else{
+      // Fichier de plus d'1 Mo : l'API ne renvoie pas le contenu, on le demande en brut
+      const raw = await ghFetch(contentsUrl(), {method: 'GET', headers: {'Accept': 'application/vnd.github.raw+json'}});
+      if(!raw.ok) throw await ghError(raw);
+      text = await raw.text();
+    }
+    return {sha: meta.sha, data: JSON.parse(text)};
+  }
+
+  async function ghPut(payload, sha){
+    const body = {message: 'Atlas : synchronisation', content: b64encode(JSON.stringify(payload))};
+    if(sha) body.sha = sha;
+    return ghFetch(contentsUrl(), {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  }
+
+  function mergeList(localList, remoteList, localTomb, remoteTomb){
+    const tomb = {...(remoteTomb || {})};
+    Object.entries(localTomb || {}).forEach(([id, ts])=>{ tomb[id] = Math.max(tomb[id] || 0, ts); });
+    const byId = new Map();
+    (remoteList || []).forEach(it=> byId.set(it.id, it));
+    localList.forEach(it=>{
+      const r = byId.get(it.id);
+      if(!r || (it.updatedAt || 0) > (r.updatedAt || 0)) byId.set(it.id, it);
+    });
+    const list = [];
+    byId.forEach(it=>{
+      const deletedAt = tomb[it.id];
+      if(deletedAt && deletedAt >= (it.updatedAt || 0)) return; // supprimé après sa dernière modification
+      list.push(it);
+    });
+    const now = Date.now();
+    Object.keys(tomb).forEach(id=>{ if(now - tomb[id] > TOMB_MAX_AGE) delete tomb[id]; });
+    return {list, tomb};
+  }
+
+  function applyMerged(newProjects, newCollections, newTomb){
+    const changed = JSON.stringify(newProjects) !== JSON.stringify(projects)
+                 || JSON.stringify(newCollections) !== JSON.stringify(collections);
+    projects = newProjects;
+    collections = newCollections;
+    tombstones = newTomb;
+    // Enregistrement direct, sans passer par persist() : ces changements viennent d'ailleurs, ils ne doivent pas être redatés
+    projectSnapshot = snapshotOf(projects);
+    collectionSnapshot = snapshotOf(collections);
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(collections));
+      saveTombstones();
+    }catch(e){}
+    if(changed){
+      rebuildMarkers();
+      rebuildReferenceLayer();
+      if(document.getElementById('collectionsOverlay').classList.contains('show')) renderCollectionsPanel();
+    }
+    return changed;
+  }
+
+  function setSyncStatus(text, kind){
+    const el = document.getElementById('syncStatus');
+    el.textContent = text;
+    el.className = 'sync-status' + (kind ? ' ' + kind : '');
+    document.getElementById('dataBtn').classList.toggle('sync-error', kind === 'error');
+    document.getElementById('syncMenuLabel').textContent = kind === 'error' ? 'Synchronisation : erreur' : 'Synchronisation…';
+  }
+
+  function scheduleSync(delay){
+    if(!syncConfig) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(()=>{ syncTimer = null; performSync(false); }, delay == null ? 4000 : delay);
+  }
+
+  async function performSync(manual){
+    if(!syncConfig) return;
+    if(syncing){ syncAgain = true; return; }
+    syncing = true;
+    setSyncStatus('Synchronisation en cours…');
+    try{
+      let pushed = false, received = false;
+      for(let attempt = 0; attempt < 3; attempt++){
+        const remote = await ghGet();
+        const rd = remote.data || {};
+        const rt = rd.tombstones || {};
+        // Aucun « await » entre la lecture de l'état local et son remplacement :
+        // une modification faite pendant l'échange réseau ne peut donc pas être perdue.
+        const seeds = projects.filter(p=> p.seed);
+        const mp = mergeList(projects.filter(p=> !p.seed), rd.projects, tombstones.projects, rt.projects);
+        const mc = mergeList(collections, rd.collections, tombstones.collections, rt.collections);
+        const newTomb = {projects: mp.tomb, collections: mc.tomb};
+        // Les exemples restent locaux, et disparaissent dès qu'il existe de vrais projets
+        received = applyMerged(mp.list.length ? mp.list : seeds, mc.list, newTomb) || received;
+
+        const remoteState = remote.data ? stableStringify({p: rd.projects || [], c: rd.collections || [], t: {projects: rt.projects || {}, collections: rt.collections || {}}}) : null;
+        const mergedState = stableStringify({p: mp.list, c: mc.list, t: newTomb});
+        if(remoteState === mergedState) break;                                   // déjà à jour en ligne
+        if(!remote.data && !mp.list.length && !mc.list.length) break;           // rien à enregistrer
+        const res = await ghPut({v: 1, app: 'atlas-architecture', updatedAt: new Date().toISOString(),
+                                 projects: mp.list, collections: mc.list, tombstones: newTomb}, remote.sha);
+        if(res.ok){ pushed = true; break; }
+        if(res.status === 409 || res.status === 422) continue;                   // modifié ailleurs entre-temps : on refusionne
+        throw await ghError(res);
+      }
+      const time = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
+      setSyncStatus(`Synchronisé à ${time} — ${projects.filter(p=>!p.seed).length} projet(s)` , 'ok');
+      if(manual) showToast(received ? 'Synchronisé : modifications reçues.' : pushed ? 'Synchronisé : modifications envoyées.' : 'Déjà à jour.');
+    }catch(e){
+      const offline = e.name === 'AbortError' || e.name === 'TypeError'; // délai dépassé ou réseau absent
+      setSyncStatus(offline ? 'Hors ligne : les modifications sont conservées sur cet appareil et seront envoyées au retour du réseau.' : e.message, 'error');
+      if(manual) showToast(offline ? 'Synchronisation impossible : réseau indisponible.' : e.message);
+    }finally{
+      syncing = false;
+      if(syncAgain){ syncAgain = false; scheduleSync(500); }
+    }
+  }
+
+  // Panneau de réglage
+  const syncOverlay = document.getElementById('syncOverlay');
+  function openSyncPanel(){
+    closeAllMenus();
+    if(syncConfig){
+      document.getElementById('syncRepo').value = syncConfig.repo;
+      document.getElementById('syncPath').value = syncConfig.path;
+      document.getElementById('syncToken').value = syncConfig.token;
+    }
+    syncOverlay.classList.add('show');
+  }
+  document.getElementById('syncMenuBtn').onclick = openSyncPanel;
+  document.getElementById('syncClose').onclick = ()=> syncOverlay.classList.remove('show');
+  syncOverlay.addEventListener('click', (e)=>{ if(e.target === syncOverlay) syncOverlay.classList.remove('show'); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') syncOverlay.classList.remove('show'); });
+
+  document.getElementById('syncConnect').onclick = async ()=>{
+    const repo = document.getElementById('syncRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '');
+    const token = document.getElementById('syncToken').value.trim();
+    const path = document.getElementById('syncPath').value.trim() || 'atlas-data.json';
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ setSyncStatus('Dépôt attendu au format propriétaire/nom, par ex. Ninjathune-Human/archibase-data.', 'error'); return; }
+    if(!token){ setSyncStatus('Saisis le jeton d\'accès.', 'error'); return; }
+    syncConfig = {repo, token, path};
+    const btn = document.getElementById('syncConnect');
+    btn.disabled = true;
+    try{
+      setSyncStatus('Vérification de l\'accès au dépôt…');
+      const res = await ghFetch(`https://api.github.com/repos/${repo}`, {method: 'GET'});
+      if(!res.ok) throw await ghError(res);
+      const meta = await res.json();
+      try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch(e){}
+      await performSync(true);
+      if(!meta.private){
+        setSyncStatus('Attention : ce dépôt est public, tes données y sont visibles par tous. Passe-le en privé dans ses réglages GitHub.', 'error');
+      }
+    }catch(e){
+      syncConfig = null;
+      setSyncStatus(e.name === 'AbortError' || e.name === 'TypeError' ? 'Réseau indisponible : impossible de vérifier le dépôt.' : e.message, 'error');
+    }finally{
+      btn.disabled = false;
+    }
+  };
+  document.getElementById('syncNow').onclick = ()=>{
+    if(!syncConfig){ setSyncStatus('Commence par enregistrer le dépôt et le jeton.', 'error'); return; }
+    performSync(true);
+  };
+  document.getElementById('syncDisconnect').onclick = ()=>{
+    if(!syncConfig) return;
+    if(!confirm('Déconnecter cet appareil ? Tes projets restent sur cet appareil et dans le dépôt, seule la synchronisation s\'arrête.')) return;
+    syncConfig = null;
+    clearTimeout(syncTimer);
+    try{ localStorage.removeItem(SYNC_KEY); }catch(e){}
+    document.getElementById('syncToken').value = '';
+    setSyncStatus('Non configurée : les données restent sur cet appareil.');
+  };
+
+  // Déclencheurs : retour sur l'app, retour du réseau, départ de l'app (envoi de ce qui est en attente)
+  document.addEventListener('visibilitychange', ()=>{
+    if(!syncConfig) return;
+    if(document.visibilityState === 'visible') performSync(false);
+    else if(syncTimer){ clearTimeout(syncTimer); syncTimer = null; performSync(false); }
+  });
+  window.addEventListener('online', ()=>{ if(syncConfig) performSync(false); });
+
   // ---- Init ----
   (async function(){
     try{
@@ -2557,6 +2918,7 @@
         map.fitBounds(bounds.pad(0.4));
       }
       loadReference(); // sans await : la carte personnelle s'affiche sans attendre la référence
+      if(syncConfig) performSync(false);
     }catch(err){
       document.getElementById('map').innerHTML =
         '<div style="color:#EDEDEA;font-family:IBM Plex Mono,monospace;padding:40px;text-align:center;">'
