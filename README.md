@@ -21,7 +21,19 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 - **Export / import JSON** — sauvegarde et restauration de toutes les données depuis le menu « ⋯ », pour ne rien perdre lors des mises à jour de l'app
 - **Accessibilité** — focus clavier visible, cibles tactiles 44px, contraste AA, `aria-label` sur les contrôles, zones sûres iPhone, respect de `prefers-reduced-motion`
 - **Fiabilité réseau** — délai maximal sur chaque appel externe (Wikidata, géocodage), avec état de chargement visible ; aucune recherche ne peut rester bloquée silencieusement
+- **Base de référence** — couche grise de bâtiments d'architecte, activable depuis le menu Filtres ; un point s'ouvre en fiche préremplie et s'ajoute au relevé en un geste
 - **Stockage local** — `localStorage`, aucun serveur, aucun compte requis
+
+## Base de référence
+
+Une base de bâtiments d'architecte (avec architecte, coordonnées et photo sur Wikidata) est reconstruite chaque semaine par GitHub Actions et publiée dans `data/reference.json`. L'app la charge au démarrage : recherche, import et complétion automatique fonctionnent alors instantanément, sans requête Wikidata en direct.
+
+- Script : `data/build/build.mjs` (Node 20, sans dépendance)
+- Workflow : `.github/workflows/build-reference.yml` — chaque lundi à 3 h UTC, ou à la demande
+- Le fichier n'est recommitté que si les données ont changé
+- Sans ce fichier (premier déploiement, ouverture en local), l'app fonctionne comme avant et interroge Wikidata en direct
+
+**Premier lancement** : onglet *Actions* du dépôt → *Base de référence Wikidata* → *Run workflow*. Si l'étape de commit échoue avec une erreur de permission : *Settings → Actions → General → Workflow permissions → Read and write permissions*.
 
 ## Déploiement
 

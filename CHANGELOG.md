@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.0
+### Ajouté
+- Base de référence préconstruite : bâtiments Wikidata avec architecte, coordonnées et photo, reconstruits chaque semaine par GitHub Actions (`data/build/build.mjs`, `.github/workflows/build-reference.yml`) et publiés dans `data/reference.json`.
+- Couche « Base de référence » sur la carte, grise et sous les épingles personnelles, activable depuis le menu Filtres ; état mémorisé.
+- Un point de référence s'ouvre en fiche préremplie (titre, architecte, année, photo, adresse) avec un bouton « Ajouter à mon relevé » ; l'identifiant Wikidata est conservé.
+
+### Changé
+- Import par architecte, par lieu et par année : recherche dans la base locale, instantanée ; Wikidata en direct seulement si la base est absente.
+- « Compléter automatiquement » utilise d'abord l'identifiant Wikidata exact quand il est connu, puis la base locale, avant toute recherche en ligne.
+- La recherche de la barre filtre aussi la couche de référence.
+
 ## 1.7.0
 ### Ajouté
 - Identité visuelle : symbole « fragment de plan » (trame, mur d'angle en coupe, refend, repère rouge), à angles francs — dans l'app, en favicon et sur la bannière du dépôt.

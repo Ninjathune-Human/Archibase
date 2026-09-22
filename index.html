@@ -128,6 +128,18 @@
     font-family:'IBM Plex Mono'; font-size:11px; color:var(--text-dim);
     white-space:nowrap;
   }
+  #searchClear{
+    display:none; flex-shrink:0;
+    width:28px; height:28px; padding:0; margin-right:-6px;
+    background:none; color:var(--text-dim);
+    border:none; border-radius:var(--radius-full);
+    cursor:pointer;
+    align-items:center; justify-content:center;
+    transition:color var(--duration-fast) var(--ease-standard);
+  }
+  #searchClear svg{width:15px; height:15px; display:block; opacity:1;}
+  #searchClear.show{display:flex;}
+  #searchClear:hover{color:var(--paper);}
 
   #addBtn{
     min-height:44px;
@@ -429,6 +441,16 @@
     font-family:'Space Grotesk'; font-weight:700; font-size:12px;
     border:2px solid var(--ink);
   }
+  /* Grappes de la base de référence : grises, en retrait par rapport au relevé personnel */
+  .ref-cluster{
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--ink-2); color:var(--text-dim);
+    border:1.5px solid var(--blueprint-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:10px;
+  }
+  #viewMenu button:disabled{opacity:0.5; cursor:default;}
+  #viewMenu button:disabled:hover{background:none;}
 
   /* Filters panel */
   #filtersOverlay{
@@ -612,6 +634,7 @@
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EDEDEA" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
     <input id="search" type="text" placeholder="Rechercher un bâtiment, un architecte, une ville…" aria-label="Rechercher un projet" />
     <span id="searchCount" aria-live="polite"></span>
+    <button id="searchClear" type="button" aria-label="Effacer la recherche" title="Effacer la recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
     <div id="searchResults" class="panel"></div>
   </div>
   <button id="wdBtn" aria-label="Importer des bâtiments" title="Importer des bâtiments">
@@ -630,6 +653,9 @@
       </button>
       <button type="button" id="filtersMenuBtn" role="menuitem">
         <span aria-hidden="true">▤</span> Filtres
+      </button>
+      <button type="button" id="refToggleBtn" role="menuitemcheckbox" aria-checked="false" disabled>
+        <span aria-hidden="true">◌</span> <span id="refToggleLabel">Base de référence (chargement…)</span>
       </button>
     </div>
   </div>
@@ -913,6 +939,7 @@
   let pendingLatLng = null;
   let editingId = null;
   let editCollectionIds = [];
+  let pendingWikidataId = null; // bâtiment ouvert depuis la base de référence, en attente d'ajout
 
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
 
@@ -1051,17 +1078,91 @@
     projects.forEach(addMarkerToMap);
   }
 
+  // Allège les étiquettes du fond vectoriel :
+  // - noms de régions/provinces masqués en dessous du zoom 5
+  // - un seul nom par lieu (français si disponible, sinon forme latine), au lieu des doubles écritures
+  function tuneBasemapLabels(glLayer){
+    const ml = glLayer && typeof glLayer.getMaplibreMap === 'function' ? glLayer.getMaplibreMap() : null;
+    if(!ml) return;
+
+    // Seuils (zoom MapLibre, décalé de -1 par rapport au zoom Leaflet affiché) :
+    const CITY_MINZOOM = 5;    // villes non capitales
+    const TOWN_MINZOOM = 7;    // villes moyennes, villages
+    const STATE_MINZOOM = 5;   // régions, provinces
+
+    // Ajoute une condition à un filtre existant, en respectant sa syntaxe (expression ou ancienne syntaxe)
+    function withCondition(filter, isCapital){
+      const isExpr = JSON.stringify(filter || '').includes('["get"');
+      const cond = isExpr
+        ? (isCapital ? ['==', ['get','capital'], 2] : ['!=', ['get','capital'], 2])
+        : (isCapital ? ['==', 'capital', 2] : ['!=', 'capital', 2]);
+      return filter ? ['all', filter, cond] : cond;
+    }
+
+    function styleLabels(id){
+      ml.setLayoutProperty(id, 'text-field',
+        ['coalesce', ['get','name:fr'], ['get','name:latin'], ['get','name']]);
+      ml.setPaintProperty(id, 'text-color',
+        ['match', ['get','class'],
+          ['country','city'], '#F2F2EE',
+          ['town'], '#C4C4BE',
+          '#8E8E8A']);
+      ml.setPaintProperty(id, 'text-halo-color', '#0A0A0A');
+      ml.setPaintProperty(id, 'text-halo-width', 1.4);
+    }
+
+    const apply = ()=>{
+      const style = ml.getStyle();
+      if(!style || !style.layers) return;
+      const layers = style.layers;
+      layers.forEach((l, idx)=>{
+        if(l.type !== 'symbol' || l['source-layer'] !== 'place') return;
+        const desc = (l.id + ' ' + JSON.stringify(l.filter || '')).toLowerCase();
+        try{
+          if(/country|continent/.test(desc)){
+            styleLabels(l.id);
+          }else if(/state|province|region/.test(desc)){
+            ml.setLayerZoomRange(l.id, Math.max(STATE_MINZOOM, l.minzoom || 0), l.maxzoom || 24);
+            styleLabels(l.id);
+          }else if(/city|capital/.test(desc)){
+            // Les capitales restent visibles à tous les zooms via une couche dédiée ;
+            // les autres villes n'apparaissent qu'à partir d'un zoom régional.
+            const capId = l.id + '-capitals';
+            if(!ml.getLayer(capId)){
+              const clone = JSON.parse(JSON.stringify(l));
+              clone.id = capId;
+              clone.filter = withCondition(l.filter, true);
+              delete clone.minzoom;
+              const next = layers[idx + 1];
+              ml.addLayer(clone, next ? next.id : undefined);
+              styleLabels(capId);
+            }
+            ml.setFilter(l.id, withCondition(l.filter, false));
+            ml.setLayerZoomRange(l.id, Math.max(CITY_MINZOOM, l.minzoom || 0), l.maxzoom || 24);
+            styleLabels(l.id);
+          }else{
+            ml.setLayerZoomRange(l.id, Math.max(TOWN_MINZOOM, l.minzoom || 0), l.maxzoom || 24);
+            styleLabels(l.id);
+          }
+        }catch(e){ /* couche non modifiable : on l'ignore */ }
+      });
+    };
+    if(ml.isStyleLoaded && ml.isStyleLoaded()) apply();
+    else ml.once('load', apply);
+  }
+
   function initMap(){
     map = L.map('map', {zoomControl:false, worldCopyJump:true, minZoom:1, maxZoom:19}).setView([46.6, 2.4], 5);
     L.control.zoom({position:'bottomleft'}).addTo(map);
     let vectorBasemapOk = false;
     try{
       if(typeof L.maplibreGL === 'function'){
-        L.maplibreGL({
+        const glLayer = L.maplibreGL({
           style: 'https://tiles.openfreemap.org/styles/dark',
           attribution: '&copy; OpenFreeMap &copy; OpenStreetMap contributors'
         }).addTo(map);
         vectorBasemapOk = true;
+        tuneBasemapLabels(glLayer);
       }
     }catch(e){ vectorBasemapOk = false; }
     if(!vectorBasemapOk){
@@ -1081,6 +1182,10 @@
       maxClusterRadius:50
     });
     map.addLayer(clusterGroup);
+
+    // Plan dédié à la base de référence : sous les épingles personnelles (markerPane = 600)
+    map.createPane('refPane');
+    map.getPane('refPane').style.zIndex = 550;
 
     map.on('click', (e)=>{
       if(placingNew){
@@ -1306,14 +1411,31 @@
     const originalLabel = btn.textContent;
     btn.textContent = 'Recherche…';
     autofillStatus.textContent = 'Recherche sur Wikidata…';
+    const refFilled = [];
     try{
-      const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(title)}&language=fr&format=json&origin=*&type=item&limit=1`;
-      const data = await fetchJson(searchUrl, {}, 25000);
-      if(!data.search || !data.search.length){
-        autofillStatus.textContent = 'Aucun résultat Wikidata pour ce nom.';
-        return;
+      // Identifiant exact d'abord : bâtiment ouvert depuis la référence, ou projet déjà lié à Wikidata
+      let qid = pendingWikidataId || null;
+      if(!qid && editingId){
+        const pr = projects.find(x=>x.id===editingId);
+        if(pr && pr.wikidataId) qid = pr.wikidataId;
       }
-      const qid = data.search[0].id;
+      // Base de référence locale : remplissage instantané, sans réseau
+      const ref = findReferenceByTitle(title);
+      if(ref){
+        if(!qid) qid = 'Q' + ref[0];
+        if(!fArchitect.value.trim() && ref[2]){ fArchitect.value = ref[2]; refFilled.push('architecte'); }
+        if(!fYear.value.trim() && ref[3]){ fYear.value = String(ref[3]); refFilled.push('année'); }
+        if(!fPhoto.value.trim() && ref[6]){ fPhoto.value = refImageUrl(ref[6], 1280); refFilled.push('photo'); }
+      }
+      if(!qid){
+        const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(title)}&language=fr&format=json&origin=*&type=item&limit=1`;
+        const data = await fetchJson(searchUrl, {}, 25000);
+        if(!data.search || !data.search.length){
+          autofillStatus.textContent = 'Aucun résultat Wikidata pour ce nom.';
+          return;
+        }
+        qid = data.search[0].id;
+      }
       const query = `
         SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article ?address ?type ?typeLabel ?commonscat WHERE {
           OPTIONAL { wd:${qid} wdt:P18 ?image . }
@@ -1329,9 +1451,9 @@
         LIMIT 1
       `;
       const rows = await sparqlQuery(query);
-      if(!rows.length){ autofillStatus.textContent = 'Fiche Wikidata trouvée, mais sans détails exploitables.'; return; }
+      if(!rows.length){ autofillStatus.textContent = refFilled.length ? `Complété depuis la base de référence : ${refFilled.join(', ')}.` : 'Fiche Wikidata trouvée, mais sans détails exploitables.'; return; }
       const r = rows[0];
-      const filled = [];
+      const filled = refFilled.map(f=> f + ' (base de référence)');
       const notFound = [];
       if(!fArchitect.value.trim() && r.architectLabel){ fArchitect.value = r.architectLabel.value; filled.push('architecte'); }
       if(!fYear.value.trim() && r.date){ fYear.value = r.date.value.slice(0,4); filled.push('année'); }
@@ -1385,10 +1507,12 @@
         : 'Fiche Wikidata trouvée, mais aucune donnée exploitable.';
       if(notFound.length) msg += ` Introuvable sur cette fiche : ${[...new Set(notFound)].join(', ')}.`;
       autofillStatus.textContent = msg;
-      updateModalBanner();
     }catch(e){
-      autofillStatus.textContent = 'Échec de la recherche (réseau ou délai dépassé).';
+      autofillStatus.textContent = refFilled.length
+        ? `Complété depuis la base de référence : ${refFilled.join(', ')}. Wikidata injoignable pour le reste.`
+        : 'Échec de la recherche (réseau ou délai dépassé).';
     }finally{
+      updateModalBanner();
       btn.disabled = false;
       btn.textContent = originalLabel;
     }
@@ -1405,7 +1529,9 @@
 
   function openCreateModal(latlng){
     editingId = null;
+    pendingWikidataId = null;
     clearForm();
+    document.getElementById('saveBtn').textContent = 'Enregistrer';
     document.getElementById('modalEyebrow').textContent = 'Nouveau relevé';
     document.getElementById('modalTitle').textContent = 'Ajouter un projet';
     document.getElementById('deleteBtn').style.display = 'none';
@@ -1436,6 +1562,8 @@
     const p = projects.find(x=>x.id===id);
     if(!p) return;
     editingId = id;
+    pendingWikidataId = null;
+    document.getElementById('saveBtn').textContent = 'Enregistrer';
     fTitle.value = p.title||''; fArchitect.value = p.architect||''; fYear.value = p.year||'';
     fCity.value = p.city||''; fTypology.value = p.typology||''; fAddress.value = p.address||''; fSource.value = p.source||'';
     fNotes.value = p.notes||''; fVisited.checked = !!p.visited;
@@ -1460,7 +1588,7 @@
 
   function closeModal(){
     modalOverlay.classList.remove('show');
-    pendingLatLng = null; editingId = null;
+    pendingLatLng = null; editingId = null; pendingWikidataId = null;
   }
 
   document.getElementById('modalClose').onclick = closeModal;
@@ -1514,11 +1642,14 @@
         id: uid(), title, architect: fArchitect.value.trim(), year: fYear.value.trim(), city: '', typology: fTypology.value,
         address: fAddress.value.trim(), lat: pendingLatLng.lat, lng: pendingLatLng.lng,
         image: allImages[0]||'', images: allImages, plans: [], comments: [], collectionIds: editCollectionIds.slice(),
-        source: '', notes: '', visited: false
+        source: pendingWikidataId ? 'https://www.wikidata.org/wiki/' + pendingWikidataId : '',
+        notes: '', visited: false
       };
+      if(pendingWikidataId) p.wikidataId = pendingWikidataId;
       projects.push(p);
       await persist();
       addMarkerToMap(p);
+      if(pendingWikidataId) rebuildReferenceLayer(); // le point gris devient une épingle personnelle
       map.setView([p.lat, p.lng], Math.max(map.getZoom(), 12));
       showToast('Projet ajouté — cliquez sur l\'épingle pour enrichir ville, plans, commentaires…');
     }
@@ -1531,6 +1662,7 @@
     projects = projects.filter(x=>x.id!==editingId);
     await persist();
     rebuildMarkers();
+    rebuildReferenceLayer(); // s'il venait de la référence, le point gris réapparaît
     closeModal();
     showToast('Projet supprimé.');
   };
@@ -1544,12 +1676,15 @@
   const searchInput = document.getElementById('search');
   const searchResults = document.getElementById('searchResults');
   const searchCount = document.getElementById('searchCount');
+  const searchClear = document.getElementById('searchClear');
 
   function runSearch(q){
     q = q.trim().toLowerCase();
+    searchClear.classList.toggle('show', searchInput.value.length > 0);
     searchQueryFilter = q;
     updateFilterIndicator();
     rebuildMarkers();
+    scheduleReferenceRebuild();
     if(!q){ searchResults.classList.remove('show'); searchCount.textContent=''; return; }
     const hits = projects.filter(p=>{
       const hay = [p.title,p.architect,p.city,p.address,p.notes].join(' ').toLowerCase();
@@ -1589,8 +1724,21 @@
   }
 
   searchInput.addEventListener('input', ()=> runSearch(searchInput.value));
+  searchClear.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    searchInput.value = '';
+    runSearch('');
+    searchInput.focus();
+  });
+  searchInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && searchInput.value){
+      e.stopPropagation();
+      searchInput.value = '';
+      runSearch('');
+    }
+  });
   document.addEventListener('click', (e)=>{
-    if(!searchResults.contains(e.target) && e.target!==searchInput){
+    if(!searchResults.contains(e.target) && e.target!==searchInput && e.target!==searchClear){
       searchResults.classList.remove('show');
     }
   });
@@ -1734,6 +1882,7 @@
       // pas de reconstruction complète de la carte (peut devenir lent
       // à mesure que le nombre de projets déjà sur la carte augmente).
       newlyAdded.forEach(addMarkerToMap);
+      rebuildReferenceLayer();
       wdOverlay.classList.remove('show');
       showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
     }catch(err){
@@ -1745,6 +1894,16 @@
   };
 
   // -- architect search --
+  const REF_RESULTS_MAX = 300;
+  // Affiche des résultats issus de la base de référence locale (instantané, sans réseau)
+  function showReferenceResults(items, status, whatFound, whatNone){
+    const shown = items.slice(0, REF_RESULTS_MAX);
+    status.textContent = items.length
+      ? `${items.length} ${whatFound} dans la base de référence${items.length > REF_RESULTS_MAX ? ` (${REF_RESULTS_MAX} premiers affichés)` : ''}.`
+      : whatNone;
+    renderWdResults(shown);
+  }
+
   document.getElementById('wdArchSearchBtn').onclick = async ()=>{
     const q = document.getElementById('wdArchInput').value.trim();
     const status = document.getElementById('wdArchStatus');
@@ -1752,6 +1911,13 @@
     const select = document.getElementById('wdArchSelect');
     const btn = document.getElementById('wdArchSearchBtn');
     if(!q){ status.textContent = "Saisissez un nom d'architecte."; return; }
+    if(refRows){
+      wrap.style.display = 'none';
+      const nq = norm(q);
+      const items = refRows.filter(r=> norm(r[2]).includes(nq)).map(refToItem);
+      showReferenceResults(items, status, 'bâtiment(s) trouvé(s)', 'Aucun bâtiment de cet architecte dans la base de référence.');
+      return;
+    }
     btn.disabled = true;
     status.textContent = 'Recherche de l\'architecte…';
     wrap.style.display = 'none';
@@ -1832,6 +1998,21 @@
       const geoData = await fetchJson(geoUrl, {headers:{'Accept':'application/json'}}, 25000);
       if(!geoData.length){ status.textContent = 'Lieu introuvable.'; return; }
       const lat = parseFloat(geoData[0].lat), lon = parseFloat(geoData[0].lon);
+      if(refRows){
+        const R = 6371, toRad = Math.PI/180, maxKm = Number(radius);
+        const withDist = [];
+        refRows.forEach(r=>{
+          const dLat = (r[4]-lat)*toRad, dLng = (r[5]-lon)*toRad;
+          const a = Math.sin(dLat/2)**2 + Math.cos(lat*toRad)*Math.cos(r[4]*toRad)*Math.sin(dLng/2)**2;
+          const km = 2*R*Math.asin(Math.sqrt(a));
+          if(km <= maxKm) withDist.push([km, r]);
+        });
+        withDist.sort((a,b)=> a[0]-b[0]); // les plus proches en premier
+        showReferenceResults(withDist.map(x=>refToItem(x[1])), status,
+          `bâtiment(s) trouvé(s) à moins de ${radius} km de "${q}"`,
+          'Aucun bâtiment dans ce rayon — essayez un rayon plus large.');
+        return;
+      }
       status.textContent = `Recherche des bâtiments dans un rayon de ${radius} km…`;
       const query = `
         SELECT DISTINCT ?item ?itemLabel ?coord ?image ?article ?architectLabel ?commonscat ?date WHERE {
@@ -1882,6 +2063,11 @@
     const status = document.getElementById('wdYearStatus');
     const btn = document.getElementById('wdYearSearchBtn');
     if(!year || year < 1800 || year > 2100){ status.textContent = 'Saisissez une année valide.'; return; }
+    if(refRows){
+      const items = refRows.filter(r=> r[3] === year).map(refToItem);
+      showReferenceResults(items, status, `projet(s) daté(s) ${year}`, `Aucun projet daté ${year} dans la base de référence.`);
+      return;
+    }
     btn.disabled = true;
     status.textContent = `Recherche des projets ${year} sur Wikidata… (peut prendre 10-20s)`;
     wdResultsList.innerHTML = '';
@@ -2228,10 +2414,133 @@
       }
       await persist();
       newlyAdded.forEach(addMarkerToMap);
+      rebuildReferenceLayer();
       showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s) depuis le fichier.` : 'Aucun nouveau projet dans ce fichier (déjà présents).');
     }catch(err){
       showToast('Fichier illisible — export .json Atlas attendu.');
     }
+  };
+
+  // ---- Base de référence (data/reference.json, reconstruite chaque semaine par GitHub Actions) ----
+  // Format compact : rows = [[qid, titre, architecte(s), année, lat, lng, fichier Commons], …]
+  const REF_VISIBLE_KEY = 'wa-atlas-ref-visible';
+  let refRows = null;
+  let refIndex = null;     // texte normalisé (titre + architecte) pour la recherche
+  let refBuiltAt = '';
+  let refLayer = null;
+  let refVisible = false;
+  let refRebuildTimer = null;
+
+  const norm = (s)=> (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+
+  function refImageUrl(file, width){
+    if(!file) return '';
+    return 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(file) + (width ? '?width=' + width : '');
+  }
+
+  // Même forme que les résultats Wikidata en direct, pour réutiliser la liste d'import existante
+  function refToItem(r){
+    return {
+      qid: 'Q' + r[0], label: r[1], architectLabel: r[2], year: r[3] ? String(r[3]) : '',
+      coord: {lat: r[4], lng: r[5]}, image: refImageUrl(r[6], 1280),
+      source: 'https://www.wikidata.org/wiki/Q' + r[0]
+    };
+  }
+
+  function updateRefToggle(){
+    const btn = document.getElementById('refToggleBtn');
+    const label = document.getElementById('refToggleLabel');
+    btn.setAttribute('aria-checked', String(refVisible));
+    btn.querySelector('span[aria-hidden]').textContent = refVisible ? '●' : '◌';
+    label.textContent = `Base de référence : ${refVisible ? 'affichée' : 'masquée'} (${refRows.length.toLocaleString('fr-FR')})`;
+    btn.title = refBuiltAt ? `Mise à jour du ${refBuiltAt}` : '';
+  }
+
+  function rebuildReferenceLayer(){
+    if(!refRows) return;
+    if(!refLayer){
+      refLayer = L.markerClusterGroup({
+        chunkedLoading: true, maxClusterRadius: 60, showCoverageOnHover: false, clusterPane: 'refPane',
+        iconCreateFunction: (c)=> L.divIcon({html: `<div class="ref-cluster">${c.getChildCount()}</div>`, className:'', iconSize:[34,34]})
+      });
+    }
+    refLayer.clearLayers();
+    if(!refVisible){
+      if(map.hasLayer(refLayer)) map.removeLayer(refLayer);
+      return;
+    }
+    const renderer = L.canvas({padding: 0.5, tolerance: 8, pane: 'refPane'}); // tolérance : cible tactile élargie
+    const owned = new Set(projects.map(p=>p.wikidataId).filter(Boolean));
+    const q = norm(searchQueryFilter);
+    const layers = [];
+    refRows.forEach((r, i)=>{
+      if(owned.has('Q' + r[0])) return;            // déjà dans ton relevé : pas de doublon
+      if(q && !refIndex[i].includes(q)) return;     // la recherche filtre aussi la référence
+      const m = L.circleMarker([r[4], r[5]], {
+        renderer, radius: 4, color: '#0A0A0A', weight: 1, fillColor: '#9A9A9A', fillOpacity: 0.95
+      });
+      m.on('click', (e)=>{ L.DomEvent.stopPropagation(e); openReferenceItem(i); });
+      layers.push(m);
+    });
+    refLayer.addLayers(layers);
+    if(!map.hasLayer(refLayer)) map.addLayer(refLayer);
+  }
+
+  function scheduleReferenceRebuild(){
+    if(!refRows || !refVisible) return;
+    clearTimeout(refRebuildTimer);
+    refRebuildTimer = setTimeout(rebuildReferenceLayer, 250); // évite de tout recalculer à chaque frappe
+  }
+
+  function openReferenceItem(i){
+    const r = refRows[i];
+    if(placingNew) exitPlacingMode();
+    openCreateModal(L.latLng(r[4], r[5]));
+    pendingWikidataId = 'Q' + r[0];
+    fTitle.value = r[1];
+    fArchitect.value = r[2];
+    fYear.value = r[3] ? String(r[3]) : '';
+    fPhoto.value = refImageUrl(r[6], 1280);
+    updateModalBanner();
+    fTitle.blur(); // pas de clavier qui surgit sur iPad pour une simple consultation
+    document.getElementById('modalEyebrow').textContent = 'Base de référence';
+    document.getElementById('modalTitle').textContent = r[1];
+    document.getElementById('saveBtn').textContent = 'Ajouter à mon relevé';
+  }
+
+  function findReferenceByTitle(title){
+    if(!refRows) return null;
+    const t = norm(title);
+    if(!t) return null;
+    return refRows.find(r=> norm(r[1]) === t) || null;
+  }
+
+  async function loadReference(){
+    const btn = document.getElementById('refToggleBtn');
+    const label = document.getElementById('refToggleLabel');
+    try{
+      const data = await fetchJson('data/reference.json', {cache: 'no-cache'}, 25000);
+      if(!data || !Array.isArray(data.rows)) throw new Error('format');
+      refRows = data.rows;
+      refIndex = refRows.map(r=> norm(r[1] + ' ' + r[2]));
+      refBuiltAt = data.builtAt || '';
+      try{ refVisible = localStorage.getItem(REF_VISIBLE_KEY) === '1'; }catch(e){ refVisible = false; }
+      btn.disabled = false;
+      updateRefToggle();
+      if(refVisible) rebuildReferenceLayer();
+    }catch(e){
+      // Fichier absent (premier déploiement, ouverture en local…) : l'app fonctionne comme avant,
+      // la recherche d'import repasse par Wikidata en direct.
+      label.textContent = 'Base de référence (indisponible)';
+    }
+  }
+
+  document.getElementById('refToggleBtn').onclick = ()=>{
+    if(!refRows) return;
+    refVisible = !refVisible;
+    try{ localStorage.setItem(REF_VISIBLE_KEY, refVisible ? '1' : '0'); }catch(e){}
+    updateRefToggle();
+    rebuildReferenceLayer();
   };
 
   // ---- Init ----
@@ -2247,6 +2556,7 @@
         const bounds = L.latLngBounds(projects.map(p=>[p.lat,p.lng]));
         map.fitBounds(bounds.pad(0.4));
       }
+      loadReference(); // sans await : la carte personnelle s'affiche sans attendre la référence
     }catch(err){
       document.getElementById('map').innerHTML =
         '<div style="color:#EDEDEA;font-family:IBM Plex Mono,monospace;padding:40px;text-align:center;">'
