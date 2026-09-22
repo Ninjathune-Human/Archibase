@@ -508,6 +508,7 @@
     color:#6E6E6E; margin-bottom:3px;
   }
   #syncModal .wd-body{padding:16px 20px;}
+  #syncModal input::placeholder{color:#A8A8A4; font-style:italic;}
   .sync-status{
     font-family:'IBM Plex Mono'; font-size:11px; color:#4D4D4D;
     padding:10px 12px; margin-bottom:14px; border-radius:var(--radius-sm);
@@ -895,11 +896,11 @@
       <div id="syncStatus" class="sync-status">Non configurée : les données restent sur cet appareil.</div>
       <div class="field">
         <label for="syncRepo">Dépôt GitHub privé</label>
-        <input id="syncRepo" type="text" placeholder="Ninjathune-Human/archibase-data" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <input id="syncRepo" type="text" placeholder="ex. Ninjathune-Human/archibase-data" autocomplete="off" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="field">
         <label for="syncToken">Jeton d'accès</label>
-        <input id="syncToken" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <input id="syncToken" type="password" placeholder="Colle ici ton jeton (github_pat_…)" autocomplete="off" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="field">
         <label for="syncPath">Fichier</label>
@@ -2860,8 +2861,9 @@
     const repo = document.getElementById('syncRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '');
     const token = document.getElementById('syncToken').value.trim();
     const path = document.getElementById('syncPath').value.trim() || 'atlas-data.json';
+    if(!repo){ setSyncStatus('Saisis le nom de ton dépôt privé, au format propriétaire/nom.', 'error'); document.getElementById('syncRepo').focus(); return; }
     if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ setSyncStatus('Dépôt attendu au format propriétaire/nom, par ex. Ninjathune-Human/archibase-data.', 'error'); return; }
-    if(!token){ setSyncStatus('Saisis le jeton d\'accès.', 'error'); return; }
+    if(!token){ setSyncStatus('Colle ton jeton d\'accès dans le champ prévu.', 'error'); document.getElementById('syncToken').focus(); return; }
     syncConfig = {repo, token, path};
     const btn = document.getElementById('syncConnect');
     btn.disabled = true;
