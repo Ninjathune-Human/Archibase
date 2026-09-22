@@ -1,0 +1,39 @@
+name: Base de référence Wikidata
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'   # chaque lundi à 3 h UTC
+  workflow_dispatch:       # bouton « Run workflow » dans l'onglet Actions
+
+permissions:
+  contents: write          # nécessaire pour committer data/reference.json
+
+concurrency:
+  group: build-reference
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Construire la base depuis Wikidata
+        run: node data/build/build.mjs
+
+      - name: Committer si les données ont changé
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/reference.json
+          if git diff --staged --quiet; then
+            echo "Aucun changement."
+          else
+            git commit -m "Base de référence : mise à jour hebdomadaire"
+            git push
+          fi
