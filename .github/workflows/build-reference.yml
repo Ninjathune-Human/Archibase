@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330   # ~92 000 bâtiments ≈ 1 h 30 à 2 h selon les pauses imposées par Wikidata
     steps:
       - uses: actions/checkout@v4
 
