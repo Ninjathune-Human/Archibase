@@ -35,5 +35,7 @@ jobs:
             echo "Aucun changement."
           else
             git commit -m "Base de référence : mise à jour hebdomadaire"
+            # Des commits ont pu arriver pendant le build (qui dure plus d'une heure) : on s'y raccroche avant d'envoyer
+            git pull --rebase origin main
             git push
           fi
