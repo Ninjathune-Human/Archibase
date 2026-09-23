@@ -707,6 +707,7 @@
   .wd-collection .wd-row{margin-bottom:0; flex-wrap:wrap;}
   #wdCollection{flex:1 1 180px;}
   #wdNewCollection{flex:1 1 180px;}
+  .wr-owned{margin-left:8px; padding:1px 6px; border-radius:var(--radius-xs); background:var(--paper-dim); color:#4D4D4D; white-space:nowrap;}
   #wdSelectedCount{font-family:'IBM Plex Mono'; font-size:11px; color:#6E6E6E;}
 </style>
 </head>
@@ -773,6 +774,9 @@
     <div id="dataMenu" role="menu">
       <button type="button" id="syncMenuBtn" role="menuitem">
         <span aria-hidden="true">⟳</span> <span id="syncMenuLabel">Synchronisation…</span>
+      </button>
+      <button type="button" id="dedupBtn" role="menuitem">
+        <span aria-hidden="true">⧉</span> Fusionner les doublons
       </button>
       <button type="button" id="exportBtn" role="menuitem">
         <span aria-hidden="true">↓</span> Exporter les données (.json)
@@ -995,10 +999,11 @@
         <input id="syncPath" type="text" value="atlas-data.json" autocomplete="off" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="sync-actions">
-        <button class="btn-primary" id="syncConnect" type="submit">Enregistrer et synchroniser</button>
-        <button class="wd-btn" id="syncNow" type="button">Synchroniser maintenant</button>
+        <button class="btn-primary" id="syncConnect" type="submit">Se connecter</button>
+        <button class="wd-btn" id="syncNow" type="button">Enregistrer mon travail</button>
         <button class="btn-danger" id="syncDisconnect" type="button">Déconnecter cet appareil</button>
       </div>
+      <div class="hint" style="margin-top:-6px;">Une fois connecté, ton travail est aussi enregistré automatiquement quelques secondes après chaque modification.</div>
       </form>
       <div class="pub-section">
         <div class="pub-title">Publication</div>
@@ -1138,6 +1143,7 @@
   let tombstones = {projects:{}, collections:{}}; // suppressions mémorisées : id -> horodatage
   let projectSnapshot = new Map();    // id -> état enregistré, pour détecter les modifications
   let collectionSnapshot = new Map();
+  let autofillQid = null;          // identifiant Wikidata trouvé par « Compléter automatiquement », conservé à l'enregistrement
   let moving = null;               // {id, marker, from} pendant un déplacement d'épingle
   let published = null;            // sélection publiée (data/published.json du dépôt public)
 
@@ -1688,6 +1694,7 @@
         }
         qid = data.search[0].id;
       }
+      autofillQid = qid;
       const query = `
         SELECT ?image ?date ?architect ?architectLabel ?city ?cityLabel ?article ?address ?type ?typeLabel ?commonscat WHERE {
           OPTIONAL { wd:${qid} wdt:P18 ?image . }
@@ -1786,6 +1793,7 @@
     document.getElementById('moveBtn').style.display = 'none';
     editingId = null;
     pendingWikidataId = null;
+    autofillQid = null;
     clearForm();
     document.getElementById('saveBtn').textContent = 'Enregistrer';
     document.getElementById('modalEyebrow').textContent = 'Nouveau relevé';
@@ -1845,6 +1853,7 @@
 
   function fillModal(p){
     pendingWikidataId = null;
+    autofillQid = null;
     document.getElementById('saveBtn').textContent = 'Enregistrer';
     fTitle.value = p.title||''; fArchitect.value = p.architect||''; fYear.value = p.year||'';
     fCity.value = p.city||''; fTypology.value = p.typology||''; fAddress.value = p.address||''; fSource.value = p.source||'';
@@ -1912,6 +1921,7 @@
         return;
       }
       delete p.seed; // un exemple modifié devient un vrai projet, donc synchronisé
+      if(!p.wikidataId && autofillQid && !projects.some(x=> x !== p && x.wikidataId === autofillQid)) p.wikidataId = autofillQid;
       p.title=title; p.architect=fArchitect.value.trim(); p.year=fYear.value.trim(); p.city=fCity.value.trim();
       p.typology=fTypology.value; p.address=fAddress.value.trim(); p.source=fSource.value.trim();
       p.notes=fNotes.value.trim(); p.visited=fVisited.checked;
@@ -1926,6 +1936,7 @@
         showToast('Cliquez sur la carte ou géocodez une adresse pour placer l\'épingle.');
         return;
       }
+      if(!pendingWikidataId && autofillQid && !projects.some(x=> x.wikidataId === autofillQid)) pendingWikidataId = autofillQid;
       const p = {
         id: uid(), title, architect: fArchitect.value.trim(), year: fYear.value.trim(), city: '', typology: fTypology.value,
         address: fAddress.value.trim(), lat: pendingLatLng.lat, lng: pendingLatLng.lng,
@@ -2132,7 +2143,7 @@
         <img class="wd-result-thumb" src="${it.image||''}" onerror="this.style.opacity=0" />
         <div class="wd-result-text">
           <div class="wr-title">${escapeHtml(it.label)}</div>
-          <div class="wr-meta">${escapeHtml(it.architectLabel||'')}</div>
+          <div class="wr-meta">${escapeHtml(it.architectLabel||'')}${findExistingFor(it.qid, it.label, it.coord) ? '<span class="wr-owned">Déjà dans ton relevé</span>' : ''}</div>
         </div>
       </label>
     `).join('');
@@ -2181,8 +2192,10 @@
       const newlyAdded = [];
       let filedExisting = 0;
       for(const qid of Array.from(wdSelected)){
-        const existing = projects.find(p=> p.wikidataId===qid);
+        const it0 = wdResultsData[qid];
+        const existing = it0 && it0.coord ? findExistingFor(qid, it0.label, it0.coord) : projects.find(p=> p.wikidataId===qid);
         if(existing){
+          if(!existing.wikidataId) existing.wikidataId = qid; // fiche manuelle reconnue : on la relie à Wikidata
           // Déjà dans le relevé : on le range quand même dans la collection choisie
           if(cid && !(existing.collectionIds||[]).includes(cid)){
             existing.collectionIds = (existing.collectionIds||[]).concat(cid);
@@ -2880,6 +2893,101 @@
     rebuildReferenceLayer();
   };
 
+  // ---- Doublons : même identifiant Wikidata, ou même nom à moins de DUP_RADIUS_M mètres ----
+  const DUP_RADIUS_M = 150;
+  const normTitle = (t)=> (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  function distM(a, b){
+    const R = 6371000, r = Math.PI/180;
+    const dLat = (b.lat-a.lat)*r, dLng = (b.lng-a.lng)*r;
+    const h = Math.sin(dLat/2)**2 + Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+  // Titre normalisé mis en cache par fiche (recalculé seulement si le titre change)
+  const titleCache = new WeakMap();
+  function ptitle(p){
+    let c = titleCache.get(p);
+    if(!c || c.t !== p.title){ c = {t: p.title, n: normTitle(p.title)}; titleCache.set(p, c); }
+    return c.n;
+  }
+  // Deux fiches désignent-elles le même bâtiment ? (deux identifiants Wikidata différents = deux bâtiments)
+  function sameBuilding(a, b){
+    if(a.wikidataId && b.wikidataId) return a.wikidataId === b.wikidataId;
+    const ta = ptitle(a);
+    return !!ta && ta === ptitle(b) && distM(a, b) <= DUP_RADIUS_M;
+  }
+  // Fiche du relevé correspondant à un résultat d'import (identifiant, sinon nom + proximité)
+  function findExistingFor(qid, label, coord){
+    return projects.find(p=> !p.seed && p.wikidataId === qid)
+        || projects.find(p=> !p.seed && sameBuilding(p, {wikidataId: qid, title: label, lat: coord.lat, lng: coord.lng}));
+  }
+
+  function findDuplicateGroups(){
+    const own = projects.filter(p=> !p.seed);
+    // Regroupement par union : on ne compare que les fiches partageant un identifiant ou un titre
+    const parent = new Map(own.map(p=> [p.id, p.id]));
+    const wdOf = new Map(own.map(p=> [p.id, p.wikidataId || null])); // identifiant porté par chaque groupe
+    const root = (x)=>{ while(parent.get(x) !== x){ parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+    const union = (a, b)=>{
+      const ra = root(a), rb = root(b);
+      if(ra === rb) return;
+      const wa = wdOf.get(ra), wb = wdOf.get(rb);
+      if(wa && wb && wa !== wb) return; // jamais deux identifiants Wikidata différents dans un même groupe
+      parent.set(ra, rb);
+      wdOf.set(rb, wb || wa);
+    };
+    const byWd = new Map(), byTitle = new Map();
+    own.forEach(p=>{
+      if(p.wikidataId){ if(!byWd.has(p.wikidataId)) byWd.set(p.wikidataId, []); byWd.get(p.wikidataId).push(p); }
+      const t = ptitle(p);
+      if(t){ if(!byTitle.has(t)) byTitle.set(t, []); byTitle.get(t).push(p); }
+    });
+    byWd.forEach(list=> list.slice(1).forEach(p=> union(list[0].id, p.id)));
+    byTitle.forEach(list=>{
+      for(let i = 0; i < list.length; i++)
+        for(let j = i + 1; j < list.length; j++)
+          if(distM(list[i], list[j]) <= DUP_RADIUS_M) union(list[i].id, list[j].id);
+    });
+    const groups = new Map();
+    own.forEach(p=>{ const r = root(p.id); if(!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+    return [...groups.values()].filter(g=> g.length > 1);
+  }
+
+  // Fusion : la fiche la plus complète est conservée et récupère les informations des autres
+  function richness(p){
+    return ['architect','year','city','address','typology','source','notes','image','wikidataId'].filter(k=> p[k]).length
+      + (p.images||[]).length + (p.plans||[]).length + (p.comments||[]).length + (p.collectionIds||[]).length;
+  }
+  function mergeGroup(g){
+    const keep = g.slice().sort((a,b)=> richness(b) - richness(a) || (b.updatedAt||0) - (a.updatedAt||0))[0];
+    const uniq = (arr, key)=>{ const m = new Map(); arr.forEach(x=>{ const k = key(x); if(!m.has(k)) m.set(k, x); }); return [...m.values()]; };
+    g.forEach(o=>{
+      if(o === keep) return;
+      ['architect','year','city','address','typology','source','notes','wikidataId'].forEach(k=>{ if(!keep[k] && o[k]) keep[k] = o[k]; });
+      keep.images = uniq((keep.images||[]).concat(o.images||[]), x=> x);
+      keep.plans = uniq((keep.plans||[]).concat(o.plans||[]), x=> x.url);
+      keep.comments = uniq((keep.comments||[]).concat(o.comments||[]), x=> x.text + '|' + x.date);
+      keep.collectionIds = uniq((keep.collectionIds||[]).concat(o.collectionIds||[]), x=> x);
+      keep.visited = !!(keep.visited || o.visited);
+    });
+    if(!keep.image && keep.images && keep.images.length) keep.image = keep.images[0];
+    return {keep, removed: g.filter(o=> o !== keep).map(o=> o.id)};
+  }
+
+  document.getElementById('dedupBtn').onclick = async ()=>{
+    closeAllMenus();
+    const groups = findDuplicateGroups();
+    if(!groups.length){ showToast('Aucun doublon trouvé.'); return; }
+    const extra = groups.reduce((n, g)=> n + g.length - 1, 0);
+    if(!confirm(`${extra} fiche(s) en double trouvée(s), réparties sur ${groups.length} bâtiment(s).\n\nChaque groupe sera fusionné en une seule fiche : la plus complète est conservée et récupère les photos, plans, commentaires, collections et informations des autres. Continuer ?`)) return;
+    const removed = new Set();
+    groups.forEach(g=> mergeGroup(g).removed.forEach(id=> removed.add(id)));
+    projects = projects.filter(p=> !removed.has(p.id));
+    await persist();
+    rebuildMarkers();
+    rebuildReferenceLayer();
+    showToast(`${removed.size} doublon(s) fusionné(s).`);
+  };
+
   // ---- Déplacement d'une épingle : mode explicite, validé ou annulé ----
   const moveBar = document.getElementById('moveBar');
   function startMove(id){
@@ -3071,7 +3179,7 @@
     syncTimer = setTimeout(()=>{ syncTimer = null; performSync(false); }, delay == null ? 4000 : delay);
   }
 
-  async function performSync(manual){
+  async function performSync(manual, mode){
     if(!syncConfig) return;
     if(syncing){ syncAgain = true; return; }
     syncing = true;
@@ -3103,7 +3211,11 @@
       }
       const time = new Date().toLocaleTimeString('fr-FR', {hour: '2-digit', minute: '2-digit'});
       setSyncStatus(`Synchronisé à ${time} — ${projects.filter(p=>!p.seed).length} projet(s)` , 'ok');
-      if(manual) showToast(received ? 'Synchronisé : modifications reçues.' : pushed ? 'Synchronisé : modifications envoyées.' : 'Déjà à jour.');
+      if(manual){
+        const n = projects.filter(p=>!p.seed).length;
+        if(mode === 'connect') showToast(`Connecté à ${syncConfig.repo} : ${n} projet(s).`);
+        else showToast(pushed ? 'Travail enregistré sur ' + syncConfig.repo + '.' : received ? 'Modifications d\'un autre appareil récupérées ; rien de plus à enregistrer.' : 'Déjà à jour : rien à enregistrer.');
+      }
     }catch(e){
       const offline = e.name === 'AbortError' || e.name === 'TypeError'; // délai dépassé ou réseau absent
       setSyncStatus(offline ? 'Hors ligne : les modifications sont conservées sur cet appareil et seront envoyées au retour du réseau.' : e.message, 'error');
@@ -3233,7 +3345,7 @@
       if(!res.ok) throw await ghError(res);
       const meta = await res.json();
       try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch(e){}
-      await performSync(true);
+      await performSync(true, 'connect');
       if(!meta.private){
         setSyncStatus('Attention : ce dépôt est public, tes données y sont visibles par tous. Passe-le en privé dans ses réglages GitHub.', 'error');
       }else{
@@ -3249,8 +3361,8 @@
     }
   }
   document.getElementById('syncNow').onclick = ()=>{
-    if(!syncConfig){ setSyncStatus('Commence par enregistrer le dépôt et le jeton.', 'error'); return; }
-    performSync(true);
+    if(!syncConfig){ setSyncStatus('Commence par te connecter avec le dépôt et le jeton.', 'error'); return; }
+    performSync(true, 'save');
   };
   document.getElementById('syncDisconnect').onclick = ()=>{
     if(!syncConfig) return;
