@@ -894,23 +894,25 @@
     </div>
     <div class="wd-body">
       <div id="syncStatus" class="sync-status">Non configurée : les données restent sur cet appareil.</div>
+      <form id="syncForm" action="#" method="post" autocomplete="on">
       <div class="field">
         <label for="syncRepo">Dépôt GitHub privé</label>
-        <input id="syncRepo" type="text" placeholder="ex. Ninjathune-Human/archibase-data" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <input id="syncRepo" name="username" type="text" placeholder="ex. Ninjathune-Human/archibase-data" autocomplete="username" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="field">
         <label for="syncToken">Jeton d'accès</label>
-        <input id="syncToken" type="password" placeholder="Colle ici ton jeton (github_pat_…)" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        <input id="syncToken" name="password" type="password" placeholder="Colle ici ton jeton (github_pat_…)" autocomplete="current-password" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="field">
         <label for="syncPath">Fichier</label>
         <input id="syncPath" type="text" value="atlas-data.json" autocomplete="off" autocapitalize="off" spellcheck="false" />
       </div>
       <div class="sync-actions">
-        <button class="btn-primary" id="syncConnect" type="button">Enregistrer et synchroniser</button>
+        <button class="btn-primary" id="syncConnect" type="submit">Enregistrer et synchroniser</button>
         <button class="wd-btn" id="syncNow" type="button">Synchroniser maintenant</button>
         <button class="btn-danger" id="syncDisconnect" type="button">Déconnecter cet appareil</button>
       </div>
+      </form>
       <div class="hint">
         À faire une seule fois : créer un dépôt <strong>privé</strong> sur GitHub, puis un jeton « fine-grained » limité à ce dépôt, avec la permission <em>Contents : Read and write</em>. Saisir ensuite le même dépôt et le même jeton sur chaque appareil.<br><br>
         Le jeton reste enregistré sur cet appareil uniquement : ne pas l'utiliser sur un appareil partagé.
@@ -2857,7 +2859,10 @@
   syncOverlay.addEventListener('click', (e)=>{ if(e.target === syncOverlay) syncOverlay.classList.remove('show'); });
   document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') syncOverlay.classList.remove('show'); });
 
-  document.getElementById('syncConnect').onclick = async ()=>{
+  // Soumission d'un vrai formulaire (dépôt = identifiant, jeton = mot de passe) :
+  // c'est ce qui permet aux gestionnaires de mots de passe de proposer l'enregistrement puis le remplissage.
+  document.getElementById('syncForm').addEventListener('submit', (e)=>{ e.preventDefault(); connectSync(); });
+  async function connectSync(){
     const repo = document.getElementById('syncRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '');
     const token = document.getElementById('syncToken').value.trim();
     const path = document.getElementById('syncPath').value.trim() || 'atlas-data.json';
@@ -2876,6 +2881,10 @@
       await performSync(true);
       if(!meta.private){
         setSyncStatus('Attention : ce dépôt est public, tes données y sont visibles par tous. Passe-le en privé dans ses réglages GitHub.', 'error');
+      }else{
+        // Fermer le panneau après succès : la disparition du formulaire est le signal
+        // qu'attendent Chrome et Edge pour proposer d'enregistrer l'identifiant.
+        setTimeout(()=> syncOverlay.classList.remove('show'), 1200);
       }
     }catch(e){
       syncConfig = null;
@@ -2883,7 +2892,7 @@
     }finally{
       btn.disabled = false;
     }
-  };
+  }
   document.getElementById('syncNow').onclick = ()=>{
     if(!syncConfig){ setSyncStatus('Commence par enregistrer le dépôt et le jeton.', 'error'); return; }
     performSync(true);
