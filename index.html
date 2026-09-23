@@ -442,6 +442,23 @@
   }
   #toast.show{display:block;}
 
+  #moveBar{
+    position:absolute; top:80px; left:50%; transform:translateX(-50%); z-index:1000;
+    display:none; align-items:center; gap:10px; padding:6px 6px 6px 16px;
+    background:var(--ink-2); border:1px solid var(--copper); border-radius:var(--radius-full);
+    box-shadow:var(--shadow-md); color:var(--paper);
+    font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.03em; white-space:nowrap;
+    max-width:calc(100vw - 24px);
+  }
+  #moveBar.show{display:flex;}
+  #moveBar span{overflow:hidden; text-overflow:ellipsis;}
+  #moveBar button{
+    min-height:36px; padding:0 14px; border-radius:var(--radius-full); cursor:pointer; flex-shrink:0;
+    font-family:'Space Grotesk'; font-weight:600; font-size:12px;
+  }
+  #moveCancel{background:none; color:var(--paper); border:1px solid var(--blueprint-dim);}
+  #moveConfirm{background:var(--copper); color:var(--ink); border:none;}
+  @media (max-width: 900px){ #moveBar{top:132px;} }
   #crosshairHint{
     position:absolute; top:80px; left:50%; transform:translateX(-50%);
     background:var(--danger); color:var(--paper); padding:8px 16px; border-radius:var(--radius-md);
@@ -769,6 +786,11 @@
 </div>
 
 <div id="crosshairHint">Cliquez sur la carte pour placer l'épingle — Échap pour annuler</div>
+<div id="moveBar" role="status">
+  <span>Fais glisser l'épingle à sa nouvelle position</span>
+  <button type="button" id="moveCancel">Annuler</button>
+  <button type="button" id="moveConfirm">Valider</button>
+</div>
 <div id="toast"></div>
 
 <div id="modalOverlay">
@@ -817,6 +839,7 @@
           <label>Adresse (pour géocodage)</label>
           <input id="f-address" type="text" placeholder="ex. 86 Quai Perrache, 69002 Lyon" />
           <button class="geocode-btn" id="geocodeBtn">Localiser cette adresse ↦</button>
+          <button class="geocode-btn" id="moveBtn" type="button" style="display:none; margin-left:18px;">Déplacer l'épingle ↦</button>
           <div class="geocode-status" id="geocodeStatus"></div>
         </div>
         <div class="hint" id="createHint">Ou cliquez directement sur la carte pour placer l'épingle. Vous pourrez enrichir ville, photos, plans et commentaires après coup, en recliquant sur l'épingle.</div>
@@ -1115,6 +1138,7 @@
   let tombstones = {projects:{}, collections:{}}; // suppressions mémorisées : id -> horodatage
   let projectSnapshot = new Map();    // id -> état enregistré, pour détecter les modifications
   let collectionSnapshot = new Map();
+  let moving = null;               // {id, marker, from} pendant un déplacement d'épingle
   let published = null;            // sélection publiée (data/published.json du dépôt public)
 
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
@@ -1272,18 +1296,12 @@
 
   function addMarkerToMap(p, fromPublished){
     if(!isProjectVisible(p)) return;
-    // Déplacement réservé au propriétaire (synchronisation configurée) : sur un profil public, positions figées
-    const movable = !fromPublished && !!syncConfig;
-    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable: movable});
+    // Épingles toujours figées : on ne déplace que via « Déplacer l'épingle » dans la fiche (évite les faux clics)
+    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable: false});
     if(fromPublished){
       m.on('click', ()=> openPublishedItem(p));
     }else{
-      m.on('click', ()=> openEditModal(p.id));
-      if(movable) m.on('dragend', (e)=>{
-        const ll = e.target.getLatLng();
-        const proj = projects.find(x=>x.id===p.id);
-        if(proj){ proj.lat = ll.lat; proj.lng = ll.lng; persist(); }
-      });
+      m.on('click', ()=>{ if(!moving) openEditModal(p.id); });
       markers[p.id] = m;
     }
     clusterGroup.addLayer(m);
@@ -1765,6 +1783,7 @@
 
   function openCreateModal(latlng){
     setModalReadonly(false);
+    document.getElementById('moveBtn').style.display = 'none';
     editingId = null;
     pendingWikidataId = null;
     clearForm();
@@ -1811,6 +1830,7 @@
     fillModal(p);
     document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('deleteBtn').style.display = 'inline';
+    document.getElementById('moveBtn').style.display = syncConfig ? '' : 'none';
     modalOverlay.classList.add('show');
   }
 
@@ -1818,6 +1838,7 @@
     editingId = null;
     fillModal(p);
     document.getElementById('modalEyebrow').textContent = 'Sélection publiée';
+    document.getElementById('moveBtn').style.display = 'none';
     setModalReadonly(true);
     modalOverlay.classList.add('show');
   }
@@ -2859,6 +2880,43 @@
     rebuildReferenceLayer();
   };
 
+  // ---- Déplacement d'une épingle : mode explicite, validé ou annulé ----
+  const moveBar = document.getElementById('moveBar');
+  function startMove(id){
+    const m = markers[id];
+    if(!m) return;
+    closeModal();
+    const begin = ()=>{
+      moving = {id, marker: m, from: m.getLatLng()};
+      if(m.dragging) m.dragging.enable();
+      moveBar.classList.add('show');
+    };
+    // Si l'épingle est regroupée, on zoome jusqu'à ce qu'elle soit visible seule
+    if(clusterGroup.hasLayer(m) && typeof clusterGroup.zoomToShowLayer === 'function') clusterGroup.zoomToShowLayer(m, begin);
+    else begin();
+  }
+  function endMove(save){
+    if(!moving) return;
+    const {id, marker, from} = moving;
+    if(marker.dragging) marker.dragging.disable();
+    moving = null;
+    moveBar.classList.remove('show');
+    const proj = projects.find(x=> x.id === id);
+    if(save && proj){
+      const ll = marker.getLatLng();
+      proj.lat = ll.lat; proj.lng = ll.lng;
+      persist();
+      showToast('Position mise à jour.');
+    }else{
+      marker.setLatLng(from);
+    }
+    rebuildMarkers(); // recalcule les regroupements avec la position finale
+  }
+  document.getElementById('moveBtn').onclick = ()=>{ if(editingId) startMove(editingId); };
+  document.getElementById('moveConfirm').onclick = ()=> endMove(true);
+  document.getElementById('moveCancel').onclick = ()=> endMove(false);
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && moving) endMove(false); });
+
   // ---- Sélection publiée (data/published.json du dépôt public, écrite par « Publier sur Archibase ») ----
   async function loadPublished(){
     try{
@@ -3175,7 +3233,6 @@
       if(!res.ok) throw await ghError(res);
       const meta = await res.json();
       try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch(e){}
-      rebuildMarkers(); // épingles désormais déplaçables
       await performSync(true);
       if(!meta.private){
         setSyncStatus('Attention : ce dépôt est public, tes données y sont visibles par tous. Passe-le en privé dans ses réglages GitHub.', 'error');
@@ -3201,7 +3258,6 @@
     syncConfig = null;
     clearTimeout(syncTimer);
     try{ localStorage.removeItem(SYNC_KEY); }catch(e){}
-    rebuildMarkers(); // épingles de nouveau figées
     document.getElementById('syncToken').value = '';
     setSyncStatus('Non configurée : les données restent sur cet appareil.');
   };
