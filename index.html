@@ -582,6 +582,28 @@
     border-radius:50%; background:var(--danger); border:1.5px solid var(--ink);
   }
 
+  /* Panneau des épingles superposées */
+  #dupOverlay{
+    position:fixed; inset:0; background:rgba(11,20,33,0.75);
+    z-index:2000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px);
+  }
+  #dupOverlay.show{display:flex;}
+  #dupModal{
+    width:500px; max-width:94vw; max-height:88vh; overflow-y:auto;
+    background:var(--paper); color:var(--text-on-paper);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+  }
+  #dupModal .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center;}
+  #dupModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #dupModal .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
+  #dupModal .wd-body{padding:16px 20px;}
+  .dup-group{border:1px solid var(--paper-dim); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:10px;}
+  .dup-item{display:flex; flex-direction:column; padding:5px 0; border-bottom:1px dashed var(--paper-dim);}
+  .dup-item:last-of-type{border-bottom:none;}
+  .dup-title{font-size:13px; font-weight:600;}
+  .dup-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E; margin-top:2px;}
+  .dup-actions{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:10px;}
+
   /* Collections panel */
   #collectionsOverlay{
     position:fixed; inset:0; background:rgba(11,20,33,0.75);
@@ -1033,6 +1055,22 @@
   </div>
 </div>
 
+<div id="dupOverlay">
+  <div id="dupModal">
+    <div class="m-head">
+      <div>
+        <div class="m-eyebrow">Données</div>
+        <h2>Épingles superposées</h2>
+      </div>
+      <button class="m-close" id="dupClose" aria-label="Fermer">×</button>
+    </div>
+    <div class="wd-body">
+      <div class="hint" id="dupCount"></div>
+      <div id="dupList"></div>
+    </div>
+  </div>
+</div>
+
 <div id="collectionsOverlay">
   <div id="collectionsModal">
     <div class="m-head">
@@ -1316,8 +1354,24 @@
   // Projets publiés absents du relevé local : tout pour un visiteur, rien (ou presque) pour le propriétaire
   function publishedExtra(){
     if(!published || !Array.isArray(published.projects)) return [];
-    const own = new Set(projects.map(p=>p.id));
-    return published.projects.filter(p=> !own.has(p.id));
+    const ownIds = new Set(projects.map(p=>p.id));
+    const ownWd = new Set();
+    const ownByTitle = new Map();
+    projects.forEach(p=>{
+      if(p.seed) return;
+      if(p.wikidataId) ownWd.add(p.wikidataId);
+      (p.altWikidataIds||[]).forEach(q=> ownWd.add(q));
+      const t = ptitle(p);
+      if(t){ if(!ownByTitle.has(t)) ownByTitle.set(t, []); ownByTitle.get(t).push(p); }
+    });
+    return published.projects.filter(p=>{
+      if(ownIds.has(p.id)) return false;
+      if(tombstones.projects[p.id]) return false;           // supprimée ou fusionnée par le propriétaire depuis la publication
+      if(p.wikidataId && ownWd.has(p.wikidataId)) return false;
+      const same = ownByTitle.get(ptitle(p));
+      if(same && same.some(o=> distM(o, p) <= DUP_RADIUS_M)) return false;
+      return true;
+    });
   }
 
   function rebuildMarkers(){
@@ -2820,7 +2874,7 @@
       return;
     }
     const renderer = L.canvas({padding: 0.5, tolerance: 8, pane: 'refPane'}); // tolérance : cible tactile élargie
-    const owned = new Set(projects.map(p=>p.wikidataId).filter(Boolean));
+    const owned = new Set(projects.flatMap(p=> [p.wikidataId, ...(p.altWikidataIds||[])]).filter(Boolean));
     const q = norm(searchQueryFilter);
     const layers = [];
     refRows.forEach((r, i)=>{
@@ -2910,14 +2964,15 @@
     return c.n;
   }
   // Deux fiches désignent-elles le même bâtiment ? (deux identifiants Wikidata différents = deux bâtiments)
+  const wdIds = (p)=> [p.wikidataId, ...(p.altWikidataIds||[])].filter(Boolean);
   function sameBuilding(a, b){
-    if(a.wikidataId && b.wikidataId) return a.wikidataId === b.wikidataId;
+    if(a.wikidataId && b.wikidataId){ const ia = wdIds(a); return wdIds(b).some(q=> ia.includes(q)); }
     const ta = ptitle(a);
     return !!ta && ta === ptitle(b) && distM(a, b) <= DUP_RADIUS_M;
   }
   // Fiche du relevé correspondant à un résultat d'import (identifiant, sinon nom + proximité)
   function findExistingFor(qid, label, coord){
-    return projects.find(p=> !p.seed && p.wikidataId === qid)
+    return projects.find(p=> !p.seed && (p.wikidataId === qid || (p.altWikidataIds||[]).includes(qid)))
         || projects.find(p=> !p.seed && sameBuilding(p, {wikidataId: qid, title: label, lat: coord.lat, lng: coord.lng}));
   }
 
@@ -2968,24 +3023,103 @@
       keep.comments = uniq((keep.comments||[]).concat(o.comments||[]), x=> x.text + '|' + x.date);
       keep.collectionIds = uniq((keep.collectionIds||[]).concat(o.collectionIds||[]), x=> x);
       keep.visited = !!(keep.visited || o.visited);
+      // Identifiant Wikidata différent (même bâtiment, deux fiches Wikidata) : conservé comme identifiant secondaire
+      wdIds(o).forEach(q=>{ if(q !== keep.wikidataId && !(keep.altWikidataIds||[]).includes(q)) keep.altWikidataIds = (keep.altWikidataIds||[]).concat(q); });
     });
     if(!keep.image && keep.images && keep.images.length) keep.image = keep.images[0];
     return {keep, removed: g.filter(o=> o !== keep).map(o=> o.id)};
   }
 
+  const SUSPECT_RADIUS_M = 15;
+  const DUP_IGNORED_KEY = 'wa-atlas-dup-ignored';
+  const groupKey = (g)=> g.map(p=> p.id).sort().join('|');
+  function ignoredGroups(){ try{ return new Set(JSON.parse(localStorage.getItem(DUP_IGNORED_KEY) || '[]')); }catch(e){ return new Set(); } }
+
+  // Épingles superposées (moins de 15 m) : même endroit, mais nom ou identifiant différent → à vérifier par l'utilisateur
+  function findSuspectGroups(){
+    const own = projects.filter(p=> !p.seed);
+    const cell = (x)=> Math.floor(x / 0.0003); // environ 30 m : chaque fiche n'est comparée qu'à ses voisines
+    const grid = new Map();
+    own.forEach(p=>{ const k = cell(p.lat) + ':' + cell(p.lng); if(!grid.has(k)) grid.set(k, []); grid.get(k).push(p); });
+    const parent = new Map(own.map(p=> [p.id, p.id]));
+    const root = (x)=>{ while(parent.get(x) !== x){ parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+    own.forEach(p=>{
+      const ci = cell(p.lat), cj = cell(p.lng);
+      for(let di = -1; di <= 1; di++) for(let dj = -1; dj <= 1; dj++){
+        (grid.get((ci+di) + ':' + (cj+dj)) || []).forEach(q=>{
+          if(q.id !== p.id && distM(p, q) <= SUSPECT_RADIUS_M){ const a = root(p.id), b = root(q.id); if(a !== b) parent.set(a, b); }
+        });
+      }
+    });
+    const groups = new Map();
+    own.forEach(p=>{ const r = root(p.id); if(!groups.has(r)) groups.set(r, []); groups.get(r).push(p); });
+    const ignored = ignoredGroups();
+    return [...groups.values()].filter(g=> g.length > 1 && !ignored.has(groupKey(g)));
+  }
+
+  const dupOverlay = document.getElementById('dupOverlay');
+  function renderSuspects(){
+    const groups = findSuspectGroups();
+    const el = document.getElementById('dupList');
+    if(!groups.length){
+      dupOverlay.classList.remove('show');
+      showToast('Plus aucune épingle superposée à vérifier.');
+      return;
+    }
+    document.getElementById('dupCount').textContent = `${groups.length} emplacement(s) avec plusieurs fiches superposées. Vérifie s'il s'agit du même bâtiment.`;
+    el.innerHTML = groups.map((g, i)=> `
+      <div class="dup-group" data-i="${i}">
+        ${g.map(p=> `<div class="dup-item"><span class="dup-title">${escapeHtml(p.title || 'Sans titre')}</span>
+          <span class="dup-meta">${escapeHtml([p.architect, p.year, p.wikidataId].filter(Boolean).join(' · ') || '—')}</span></div>`).join('')}
+        <div class="dup-actions">
+          <button type="button" class="wd-btn" data-act="see">Voir</button>
+          <button type="button" class="wd-btn" data-act="ignore">Ce ne sont pas des doublons</button>
+          <button type="button" class="btn-primary" data-act="merge">Fusionner</button>
+        </div>
+      </div>`).join('');
+    el.querySelectorAll('.dup-group').forEach(card=>{
+      const g = groups[Number(card.dataset.i)];
+      card.querySelector('[data-act="see"]').onclick = ()=>{ dupOverlay.classList.remove('show'); map.setView([g[0].lat, g[0].lng], 18); };
+      card.querySelector('[data-act="ignore"]').onclick = ()=>{
+        const ig = ignoredGroups(); ig.add(groupKey(g));
+        try{ localStorage.setItem(DUP_IGNORED_KEY, JSON.stringify([...ig])); }catch(e){}
+        renderSuspects();
+      };
+      card.querySelector('[data-act="merge"]').onclick = async ()=>{
+        const {removed} = mergeGroup(g);
+        const rm = new Set(removed);
+        projects = projects.filter(p=> !rm.has(p.id));
+        await persist();
+        rebuildMarkers();
+        rebuildReferenceLayer();
+        showToast('Fiches fusionnées.');
+        renderSuspects();
+      };
+    });
+    dupOverlay.classList.add('show');
+  }
+  document.getElementById('dupClose').onclick = ()=> dupOverlay.classList.remove('show');
+  dupOverlay.addEventListener('click', (e)=>{ if(e.target === dupOverlay) dupOverlay.classList.remove('show'); });
+
   document.getElementById('dedupBtn').onclick = async ()=>{
     closeAllMenus();
+    // 1. Doublons certains : fusion automatique après confirmation
     const groups = findDuplicateGroups();
-    if(!groups.length){ showToast('Aucun doublon trouvé.'); return; }
-    const extra = groups.reduce((n, g)=> n + g.length - 1, 0);
-    if(!confirm(`${extra} fiche(s) en double trouvée(s), réparties sur ${groups.length} bâtiment(s).\n\nChaque groupe sera fusionné en une seule fiche : la plus complète est conservée et récupère les photos, plans, commentaires, collections et informations des autres. Continuer ?`)) return;
-    const removed = new Set();
-    groups.forEach(g=> mergeGroup(g).removed.forEach(id=> removed.add(id)));
-    projects = projects.filter(p=> !removed.has(p.id));
-    await persist();
-    rebuildMarkers();
-    rebuildReferenceLayer();
-    showToast(`${removed.size} doublon(s) fusionné(s).`);
+    if(groups.length){
+      const extra = groups.reduce((n, g)=> n + g.length - 1, 0);
+      if(confirm(`${extra} fiche(s) en double trouvée(s), réparties sur ${groups.length} bâtiment(s).\n\nChaque groupe sera fusionné en une seule fiche : la plus complète est conservée et récupère les photos, plans, commentaires, collections et informations des autres. Continuer ?`)){
+        const removed = new Set();
+        groups.forEach(g=> mergeGroup(g).removed.forEach(id=> removed.add(id)));
+        projects = projects.filter(p=> !removed.has(p.id));
+        await persist();
+        rebuildMarkers();
+        rebuildReferenceLayer();
+        showToast(`${removed.size} doublon(s) fusionné(s).`);
+      }
+    }
+    // 2. Épingles superposées restantes : à vérifier une par une
+    if(findSuspectGroups().length){ renderSuspects(); return; }
+    if(!groups.length) showToast('Aucun doublon trouvé.');
   };
 
   // ---- Déplacement d'une épingle : mode explicite, validé ou annulé ----
