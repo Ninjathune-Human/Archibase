@@ -1217,12 +1217,14 @@
 
   function addMarkerToMap(p, fromPublished){
     if(!isProjectVisible(p)) return;
-    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable: !fromPublished});
+    // Déplacement réservé au propriétaire (synchronisation configurée) : sur un profil public, positions figées
+    const movable = !fromPublished && !!syncConfig;
+    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable: movable});
     if(fromPublished){
       m.on('click', ()=> openPublishedItem(p));
     }else{
       m.on('click', ()=> openEditModal(p.id));
-      m.on('dragend', (e)=>{
+      if(movable) m.on('dragend', (e)=>{
         const ll = e.target.getLatLng();
         const proj = projects.find(x=>x.id===p.id);
         if(proj){ proj.lat = ll.lat; proj.lng = ll.lng; persist(); }
@@ -3057,6 +3059,7 @@
       if(!res.ok) throw await ghError(res);
       const meta = await res.json();
       try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch(e){}
+      rebuildMarkers(); // épingles désormais déplaçables
       await performSync(true);
       if(!meta.private){
         setSyncStatus('Attention : ce dépôt est public, tes données y sont visibles par tous. Passe-le en privé dans ses réglages GitHub.', 'error');
@@ -3082,6 +3085,7 @@
     syncConfig = null;
     clearTimeout(syncTimer);
     try{ localStorage.removeItem(SYNC_KEY); }catch(e){}
+    rebuildMarkers(); // épingles de nouveau figées
     document.getElementById('syncToken').value = '';
     setSyncStatus('Non configurée : les données restent sur cet appareil.');
   };
