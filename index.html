@@ -597,9 +597,12 @@
   .collection-row .cr-name{flex:1; font-size:13px;}
   .collection-row .cr-count{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E;}
   .collection-row .cr-delete{
-    background:none; border:none; color:#6E6E6E; cursor:pointer; font-size:16px; min-height:0; padding:2px 4px;
+    background:none; border:none; color:var(--danger); cursor:pointer;
+    min-height:44px; padding:0 4px 0 10px;
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+    text-decoration:underline; text-underline-offset:3px;
   }
-  .collection-row .cr-delete:hover{color:var(--danger);}
+  .collection-row .cr-delete:hover{color:var(--copper-bright);}
   .collections-empty{font-size:12px; color:#6E6E6E; padding:12px 4px;}
 
   .collection-chip-list{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;}
@@ -679,6 +682,14 @@
     display:flex; justify-content:space-between; align-items:center;
     padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--paper-dim);
   }
+  .wd-collection{padding:12px 20px 0; border-top:1px solid var(--paper-dim);}
+  .wd-collection label{
+    display:block; font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase;
+    letter-spacing:0.06em; color:#6E6E6E; margin-bottom:5px;
+  }
+  .wd-collection .wd-row{margin-bottom:0; flex-wrap:wrap;}
+  #wdCollection{flex:1 1 180px;}
+  #wdNewCollection{flex:1 1 180px;}
   #wdSelectedCount{font-family:'IBM Plex Mono'; font-size:11px; color:#6E6E6E;}
 </style>
 </head>
@@ -895,6 +906,7 @@
             <button class="wd-btn" id="f-collection-add" type="button">Créer et ajouter</button>
           </div>
         </div>
+        <div class="hint">Touche une pastille pour ajouter ou retirer ce projet. Pour supprimer une collection : menu ▤ → Collections.</div>
       </div>
     </div>
     <div class="m-actions">
@@ -1059,6 +1071,13 @@
         <div class="wd-status" id="wdYearStatus">Cherche les structures architecturales dont la date d'achèvement ou d'ouverture officielle correspond à cette année, toutes localisations confondues. Peut prendre quelques secondes.</div>
       </div>
       <div class="wd-results" id="wdResultsList"></div>
+    </div>
+    <div class="wd-collection">
+      <label for="wdCollection">Ajouter à une collection</label>
+      <div class="wd-row">
+        <select id="wdCollection"></select>
+        <input id="wdNewCollection" type="text" placeholder="Nom de la nouvelle collection" style="display:none;" />
+      </div>
     </div>
     <div class="m-actions">
       <span id="wdSelectedCount">0 sélectionné(s)</span>
@@ -2001,7 +2020,24 @@
   let wdSelected = new Set();
   let wdCurrentArchitectLabel = '';
 
+  const wdCollection = document.getElementById('wdCollection');
+  const wdNewCollection = document.getElementById('wdNewCollection');
+  function renderWdCollectionSelect(keep){
+    const prev = keep !== undefined ? keep : wdCollection.value;
+    wdCollection.innerHTML = '<option value="">Aucune</option>'
+      + collections.map(c=> `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('')
+      + '<option value="__new__">+ Nouvelle collection…</option>';
+    wdCollection.value = [...wdCollection.options].some(o=> o.value === prev) ? prev : '';
+    wdNewCollection.style.display = wdCollection.value === '__new__' ? '' : 'none';
+  }
+  wdCollection.addEventListener('change', ()=>{
+    const isNew = wdCollection.value === '__new__';
+    wdNewCollection.style.display = isNew ? '' : 'none';
+    if(isNew) wdNewCollection.focus();
+  });
+
   document.getElementById('wdBtn').onclick = ()=>{
+    renderWdCollectionSelect();
     wdOverlay.classList.add('show');
   };
   document.getElementById('wdClose').onclick = ()=> wdOverlay.classList.remove('show');
@@ -2105,14 +2141,34 @@
   }
 
   wdImportBtn.onclick = async ()=>{
+    // Collection cible : aucune, existante, ou nouvelle (créée ici)
+    let cid = wdCollection.value;
+    if(cid === '__new__'){
+      const name = wdNewCollection.value.trim();
+      if(!name){ showToast('Donne un nom à la nouvelle collection.'); wdNewCollection.focus(); return; }
+      const c = {id: uid(), name};
+      collections.push(c);
+      await persistCollections();
+      cid = c.id;
+      wdNewCollection.value = '';
+    }
+    const coll = cid ? collections.find(c=> c.id === cid) : null;
     wdImportBtn.disabled = true;
     const originalLabel = wdImportBtn.textContent;
     wdImportBtn.textContent = 'Import en cours…';
     try{
       const newlyAdded = [];
+      let filedExisting = 0;
       for(const qid of Array.from(wdSelected)){
-        const already = projects.some(p=> p.wikidataId===qid);
-        if(already) continue;
+        const existing = projects.find(p=> p.wikidataId===qid);
+        if(existing){
+          // Déjà dans le relevé : on le range quand même dans la collection choisie
+          if(cid && !(existing.collectionIds||[]).includes(cid)){
+            existing.collectionIds = (existing.collectionIds||[]).concat(cid);
+            filedExisting++;
+          }
+          continue;
+        }
         const it = wdResultsData[qid];
         if(!it || !it.coord) continue;
         const project = {
@@ -2120,7 +2176,7 @@
           address:'', lat: it.coord.lat, lng: it.coord.lng,
           image: it.image||'', images: it.image ? [it.image] : [],
           source: it.source || ('https://www.wikidata.org/wiki/'+qid),
-          notes: '', collectionIds: [],
+          notes: '', collectionIds: cid ? [cid] : [],
           wikidataId: qid
         };
         projects.push(project);
@@ -2130,10 +2186,16 @@
       // Ajout incrémental : seules les nouvelles épingles sont créées,
       // pas de reconstruction complète de la carte (peut devenir lent
       // à mesure que le nombre de projets déjà sur la carte augmente).
-      newlyAdded.forEach(p=> addMarkerToMap(p, false));
+      if(filedExisting) rebuildMarkers(); // l'appartenance a changé : utile si un filtre de collection est actif
+      else newlyAdded.forEach(p=> addMarkerToMap(p, false));
       rebuildReferenceLayer();
+      renderWdCollectionSelect(cid); // garder la collection choisie pour l'import suivant
       wdOverlay.classList.remove('show');
-      showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
+      const where = coll ? ` dans « ${coll.name} »` : '';
+      const parts = [];
+      if(newlyAdded.length) parts.push(`${newlyAdded.length} projet(s) importé(s)`);
+      if(filedExisting) parts.push(`${filedExisting} déjà présent(s) ajouté(s)`);
+      showToast(parts.length ? parts.join(' et ') + where + '.' : 'Ces projets étaient déjà importés.');
     }catch(err){
       showToast("Échec de l'import — réessayez.");
     }finally{
@@ -2459,7 +2521,7 @@
           <input type="checkbox" data-cid="${escapeHtml(c.id)}" ${checked ? 'checked' : ''} />
           <span class="cr-name">${escapeHtml(c.name)}</span>
           <span class="cr-count">${count}</span>
-          <button type="button" class="cr-delete" data-delete="${escapeHtml(c.id)}" aria-label="Supprimer la collection">×</button>
+          <button type="button" class="cr-delete" data-delete="${escapeHtml(c.id)}" aria-label="Supprimer la collection ${escapeHtml(c.name)}">Supprimer</button>
         </div>`);
     });
     el.innerHTML = collections.length ? rows.join('') : (rows.join('') + `<div class="collections-empty">Aucune collection créée — ajoute la première ci-dessus, ou depuis la fiche d'un projet.</div>`);
