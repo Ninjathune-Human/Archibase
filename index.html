@@ -1364,12 +1364,20 @@
       const t = ptitle(p);
       if(t){ if(!ownByTitle.has(t)) ownByTitle.set(t, []); ownByTitle.get(t).push(p); }
     });
+    const keptWd = new Set();
+    const keptByTitle = new Map();
     return published.projects.filter(p=>{
       if(ownIds.has(p.id)) return false;
       if(tombstones.projects[p.id]) return false;           // supprimée ou fusionnée par le propriétaire depuis la publication
       if(p.wikidataId && ownWd.has(p.wikidataId)) return false;
       const same = ownByTitle.get(ptitle(p));
       if(same && same.some(o=> distM(o, p) <= DUP_RADIUS_M)) return false;
+      // Doublons à l'intérieur de la sélection publiée elle-même (publication faite avant une fusion)
+      if(wdIds(p).some(q=> keptWd.has(q))) return false;
+      const kept = keptByTitle.get(ptitle(p));
+      if(kept && kept.some(o=> sameBuilding(o, p))) return false;
+      wdIds(p).forEach(q=> keptWd.add(q));
+      if(ptitle(p)){ if(!keptByTitle.has(ptitle(p))) keptByTitle.set(ptitle(p), []); keptByTitle.get(ptitle(p)).push(p); }
       return true;
     });
   }
