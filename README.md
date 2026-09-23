@@ -51,6 +51,16 @@ Le relevé personnel (projets, collections) peut être synchronisé entre plusie
 
 Le jeton est conservé uniquement sur l'appareil ; ne pas le saisir sur un appareil partagé.
 
+## Publication
+
+Le relevé privé reste la version de travail. Depuis le panneau *Synchronisation* (menu ⇅), le bouton **Publier sur Archibase** fige son état et l'écrit dans `data/published.json` de ce dépôt public.
+
+- Choix du contenu : tout le relevé, ou une seule collection
+- Notes et commentaires exclus par défaut (case à cocher pour les inclure) ; collections et données internes jamais publiées
+- Les visiteurs voient la sélection publiée à la place des exemples, en lecture seule ; recherche et filtres s'y appliquent
+- Le propriétaire continue de voir et modifier son relevé complet, sans doublon
+- Le jeton de synchronisation doit aussi avoir accès à ce dépôt public (*Contents : Read and write*)
+
 ## Déploiement
 
 Ce dépôt contient un unique fichier `index.html` autonome.

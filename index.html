@@ -486,6 +486,19 @@
     border-radius:50%; background:var(--copper); border:1.5px solid var(--ink);
   }
 
+  /* Fiche en lecture seule (sélection publiée) */
+  #modal.readonly .m-actions,
+  #modal.readonly #autofillBtn, #modal.readonly #autofillStatus,
+  #modal.readonly #geocodeBtn, #modal.readonly #geocodeStatus,
+  #modal.readonly #f-collections-field,
+  #modal.readonly .m-body .field-row:has(> .wd-btn),
+  #modal.readonly .photo-chip button, #modal.readonly .link-row button, #modal.readonly .comment-row button{display:none !important;}
+  #modal.readonly .m-body input:disabled, #modal.readonly .m-body textarea:disabled, #modal.readonly .m-body select:disabled{
+    background:transparent; border-color:transparent; color:var(--text-on-paper); opacity:1;
+    -webkit-text-fill-color:var(--text-on-paper); padding-left:0;
+  }
+  #modal.readonly .m-body input:disabled::placeholder, #modal.readonly .m-body textarea:disabled::placeholder{color:transparent;}
+
   /* Sync panel */
   #syncOverlay{
     position:fixed; inset:0; background:rgba(11,20,33,0.75);
@@ -517,6 +530,9 @@
   .sync-status.ok{border-left-color:#2E7D4F;}
   .sync-status.error{border-left-color:var(--danger); color:var(--danger);}
   .sync-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 16px;}
+  .pub-section{margin-top:18px; padding-top:16px; border-top:1px solid var(--paper-dim);}
+  .pub-title{font-family:'Space Grotesk'; font-weight:600; font-size:14px; margin-bottom:10px;}
+  #syncModal select{width:100%;}
   #dataBtn.sync-error::after{
     content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
     border-radius:50%; background:var(--danger); border:1.5px solid var(--ink);
@@ -791,7 +807,7 @@
               <option value="Autre">Autre</option>
             </select>
           </div>
-          <div class="field">
+          <div class="field" id="f-collections-field">
             <label>Collections</label>
             <div id="f-collections-list" class="collection-chip-list"></div>
             <div class="field-row">
@@ -913,6 +929,26 @@
         <button class="btn-danger" id="syncDisconnect" type="button">Déconnecter cet appareil</button>
       </div>
       </form>
+      <div class="pub-section">
+        <div class="pub-title">Publication</div>
+        <div id="pubStatus" class="sync-status">Rien n'a encore été publié.</div>
+        <div class="field">
+          <label for="pubRepo">Dépôt public (le site)</label>
+          <input id="pubRepo" type="text" placeholder="ex. Ninjathune-Human/Archibase" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="pubCollection">Que publier ?</label>
+          <select id="pubCollection"></select>
+        </div>
+        <label class="field-checkbox">
+          <input id="pubNotes" type="checkbox" />
+          <span>Inclure les notes et commentaires</span>
+        </label>
+        <div class="sync-actions">
+          <button class="btn-primary" id="pubBtn" type="button">Publier sur Archibase</button>
+        </div>
+        <div class="hint">Fige l'état actuel et le rend consultable par tous, en lecture seule. Ton relevé privé n'est pas modifié. Le jeton doit aussi avoir accès au dépôt public.</div>
+      </div>
       <div class="hint">
         À faire une seule fois : créer un dépôt <strong>privé</strong> sur GitHub, puis un jeton « fine-grained » limité à ce dépôt, avec la permission <em>Contents : Read and write</em>. Saisir ensuite le même dépôt et le même jeton sur chaque appareil.<br><br>
         Le jeton reste enregistré sur cet appareil uniquement : ne pas l'utiliser sur un appareil partagé.
@@ -1024,6 +1060,7 @@
   let tombstones = {projects:{}, collections:{}}; // suppressions mémorisées : id -> horodatage
   let projectSnapshot = new Map();    // id -> état enregistré, pour détecter les modifications
   let collectionSnapshot = new Map();
+  let published = null;            // sélection publiée (data/published.json du dépôt public)
 
   function uid(){ return 'p' + Date.now() + Math.random().toString(36).slice(2,7); }
 
@@ -1178,23 +1215,35 @@
     return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  function addMarkerToMap(p){
+  function addMarkerToMap(p, fromPublished){
     if(!isProjectVisible(p)) return;
-    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable:true});
-    m.on('click', ()=> openEditModal(p.id));
-    m.on('dragend', (e)=>{
-      const ll = e.target.getLatLng();
-      const proj = projects.find(x=>x.id===p.id);
-      if(proj){ proj.lat = ll.lat; proj.lng = ll.lng; persist(); }
-    });
-    markers[p.id] = m;
+    const m = L.marker([p.lat, p.lng], {icon: pinDivIcon(p.visited), draggable: !fromPublished});
+    if(fromPublished){
+      m.on('click', ()=> openPublishedItem(p));
+    }else{
+      m.on('click', ()=> openEditModal(p.id));
+      m.on('dragend', (e)=>{
+        const ll = e.target.getLatLng();
+        const proj = projects.find(x=>x.id===p.id);
+        if(proj){ proj.lat = ll.lat; proj.lng = ll.lng; persist(); }
+      });
+      markers[p.id] = m;
+    }
     clusterGroup.addLayer(m);
+  }
+
+  // Projets publiés absents du relevé local : tout pour un visiteur, rien (ou presque) pour le propriétaire
+  function publishedExtra(){
+    if(!published || !Array.isArray(published.projects)) return [];
+    const own = new Set(projects.map(p=>p.id));
+    return published.projects.filter(p=> !own.has(p.id));
   }
 
   function rebuildMarkers(){
     clusterGroup.clearLayers();
     markers = {};
-    projects.forEach(addMarkerToMap);
+    projects.forEach(p=> addMarkerToMap(p, false));
+    publishedExtra().forEach(p=> addMarkerToMap(p, true));
   }
 
   // Allège les étiquettes du fond vectoriel :
@@ -1647,6 +1696,7 @@
   }
 
   function openCreateModal(latlng){
+    setModalReadonly(false);
     editingId = null;
     pendingWikidataId = null;
     clearForm();
@@ -1677,10 +1727,33 @@
     }
   }
 
+  // Fiche en lecture seule : sélection publiée consultée par un visiteur
+  function setModalReadonly(on){
+    document.getElementById('modal').classList.toggle('readonly', on);
+    document.querySelectorAll('#modal .m-body input, #modal .m-body textarea, #modal .m-body select')
+      .forEach(el=>{ el.disabled = on; });
+  }
+
   function openEditModal(id){
     const p = projects.find(x=>x.id===id);
     if(!p) return;
+    setModalReadonly(false);
     editingId = id;
+    fillModal(p);
+    document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
+    document.getElementById('deleteBtn').style.display = 'inline';
+    modalOverlay.classList.add('show');
+  }
+
+  function openPublishedItem(p){
+    editingId = null;
+    fillModal(p);
+    document.getElementById('modalEyebrow').textContent = 'Sélection publiée';
+    setModalReadonly(true);
+    modalOverlay.classList.add('show');
+  }
+
+  function fillModal(p){
     pendingWikidataId = null;
     document.getElementById('saveBtn').textContent = 'Enregistrer';
     fTitle.value = p.title||''; fArchitect.value = p.architect||''; fYear.value = p.year||'';
@@ -1695,18 +1768,16 @@
     editCollectionIds = p.collectionIds ? p.collectionIds.slice() : [];
     renderPhotosList(); renderPlansList(); renderCommentsList(); renderCollectionChips();
     updateModalBanner();
-    document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('modalTitle').textContent = p.title || 'Projet';
-    document.getElementById('deleteBtn').style.display = 'inline';
     editOnlySections.style.display = '';
     createHint.style.display = 'none';
     modalTabs.style.display = '';
     switchModalTab('infos');
-    modalOverlay.classList.add('show');
   }
 
   function closeModal(){
     modalOverlay.classList.remove('show');
+    setModalReadonly(false);
     pendingLatLng = null; editingId = null; pendingWikidataId = null;
   }
 
@@ -1811,7 +1882,8 @@
     rebuildMarkers();
     scheduleReferenceRebuild();
     if(!q){ searchResults.classList.remove('show'); searchCount.textContent=''; return; }
-    const hits = projects.filter(p=>{
+    const pool = projects.concat(publishedExtra());
+    const hits = pool.filter(p=>{
       const hay = [p.title,p.architect,p.city,p.address,p.notes].join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -1835,7 +1907,7 @@
     searchResults.classList.add('show');
     searchResults.querySelectorAll('.result-item[data-id]').forEach(el=>{
       const activate = ()=>{
-        const p = projects.find(x=>x.id===el.dataset.id);
+        const p = pool.find(x=>x.id===el.dataset.id);
         if(p){
           map.setView([p.lat,p.lng], 14);
         }
@@ -2006,7 +2078,7 @@
       // Ajout incrémental : seules les nouvelles épingles sont créées,
       // pas de reconstruction complète de la carte (peut devenir lent
       // à mesure que le nombre de projets déjà sur la carte augmente).
-      newlyAdded.forEach(addMarkerToMap);
+      newlyAdded.forEach(p=> addMarkerToMap(p, false));
       rebuildReferenceLayer();
       wdOverlay.classList.remove('show');
       showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s).` : 'Ces projets étaient déjà importés.');
@@ -2417,9 +2489,10 @@
   }
 
   function renderFiltersPanel(){
+    const all = projects.concat(publishedExtra());
     // Typologie : uniquement les valeurs présentes dans les données
     const typoCounts = {};
-    projects.forEach(p=>{ const t = p.typology || '__none__'; typoCounts[t] = (typoCounts[t]||0)+1; });
+    all.forEach(p=>{ const t = p.typology || '__none__'; typoCounts[t] = (typoCounts[t]||0)+1; });
     const typoOptions = Object.keys(typoCounts)
       .filter(t=>t!=='__none__')
       .sort()
@@ -2429,7 +2502,7 @@
 
     // Décennie
     const decCounts = {};
-    projects.forEach(p=>{ const d = decadeOf(p.year) || '__none__'; decCounts[d] = (decCounts[d]||0)+1; });
+    all.forEach(p=>{ const d = decadeOf(p.year) || '__none__'; decCounts[d] = (decCounts[d]||0)+1; });
     const decOptions = Object.keys(decCounts)
       .filter(d=>d!=='__none__')
       .sort()
@@ -2438,8 +2511,8 @@
     renderFilterGroup('filterDecadeList', decOptions, decadeFilter, (v)=>{ decadeFilter = v; });
 
     // Statut
-    const visitedCount = projects.filter(p=>p.visited).length;
-    const notVisitedCount = projects.length - visitedCount;
+    const visitedCount = all.filter(p=>p.visited).length;
+    const notVisitedCount = all.length - visitedCount;
     const statusOptions = [
       {id:'visited', label:'Visité', count: visitedCount},
       {id:'notvisited', label:'Non visité', count: notVisitedCount}
@@ -2538,7 +2611,7 @@
         if(newCollections) await persistCollections();
       }
       await persist();
-      newlyAdded.forEach(addMarkerToMap);
+      newlyAdded.forEach(p=> addMarkerToMap(p, false));
       rebuildReferenceLayer();
       showToast(newlyAdded.length ? `${newlyAdded.length} projet(s) importé(s) depuis le fichier.` : 'Aucun nouveau projet dans ce fichier (déjà présents).');
     }catch(err){
@@ -2667,6 +2740,28 @@
     updateRefToggle();
     rebuildReferenceLayer();
   };
+
+  // ---- Sélection publiée (data/published.json du dépôt public, écrite par « Publier sur Archibase ») ----
+  async function loadPublished(){
+    try{
+      const data = await fetchJson('data/published.json', {cache: 'no-cache'}, 25000);
+      if(!data || !Array.isArray(data.projects)) return;
+      published = data;
+      const visitor = data.projects.length && projects.length && projects.every(p=> p.seed);
+      if(visitor){
+        // La sélection publiée remplace les exemples de démonstration.
+        // Retrait direct, sans persist() : les exemples ne sont pas de vraies suppressions à synchroniser.
+        projects = [];
+        projectSnapshot = snapshotOf(projects);
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); }catch(e){}
+      }
+      rebuildMarkers();
+      if(visitor){
+        const pts = data.projects.map(p=> [p.lat, p.lng]);
+        if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.4));
+      }
+    }catch(e){ /* pas de sélection publiée : rien à afficher de plus */ }
+  }
 
   // ---- Synchronisation multi-appareils : fichier JSON dans un dépôt GitHub privé ----
   // Fusion projet par projet : la version la plus récente l'emporte ; une suppression est mémorisée
@@ -2852,8 +2947,92 @@
       document.getElementById('syncPath').value = syncConfig.path;
       document.getElementById('syncToken').value = syncConfig.token;
     }
+    renderPublishPanel();
     syncOverlay.classList.add('show');
   }
+
+  // ---- Publication : état figé du relevé écrit dans data/published.json du dépôt public ----
+  const PUBLISHED_PATH = 'data/published.json';
+
+  // Dépôt public par défaut : déduit de l'adresse du site (propriétaire.github.io/Dépôt/)
+  function guessPublicRepo(){
+    if(syncConfig && syncConfig.publicRepo) return syncConfig.publicRepo;
+    const host = location.hostname, seg = location.pathname.split('/').filter(Boolean)[0];
+    if(host.endsWith('.github.io') && seg) return host.split('.')[0] + '/' + seg;
+    return '';
+  }
+
+  function renderPublishPanel(){
+    document.getElementById('pubRepo').value = guessPublicRepo();
+    const sel = document.getElementById('pubCollection');
+    const own = projects.filter(p=> !p.seed);
+    sel.innerHTML = `<option value="">Tout le relevé (${own.length})</option>` + collections.map(c=>{
+      const n = own.filter(p=> (p.collectionIds||[]).includes(c.id)).length;
+      return `<option value="${escapeHtml(c.id)}">Collection « ${escapeHtml(c.name)} » (${n})</option>`;
+    }).join('');
+    const st = document.getElementById('pubStatus');
+    if(published && published.publishedAt){
+      const d = new Date(published.publishedAt).toLocaleString('fr-FR', {dateStyle:'long', timeStyle:'short'});
+      st.textContent = `Dernière publication : ${d} — ${published.projects.length} projet(s)${published.scope ? ', ' + published.scope : ''}.`;
+      st.className = 'sync-status ok';
+    }else{
+      st.textContent = 'Rien n\'a encore été publié.';
+      st.className = 'sync-status';
+    }
+  }
+
+  function setPubStatus(text, kind){
+    const st = document.getElementById('pubStatus');
+    st.textContent = text;
+    st.className = 'sync-status' + (kind ? ' ' + kind : '');
+  }
+
+  document.getElementById('pubBtn').onclick = async ()=>{
+    if(!syncConfig){ setPubStatus('Configure d\'abord la synchronisation ci-dessus : le même jeton sert à publier.', 'error'); return; }
+    const repo = document.getElementById('pubRepo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '');
+    if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){ setPubStatus('Dépôt public attendu au format propriétaire/nom, par ex. Ninjathune-Human/Archibase.', 'error'); return; }
+    if(repo.toLowerCase() === syncConfig.repo.toLowerCase()){ setPubStatus('Le dépôt public doit être différent de ton dépôt privé.', 'error'); return; }
+    const cid = document.getElementById('pubCollection').value;
+    const withNotes = document.getElementById('pubNotes').checked;
+    const coll = cid ? collections.find(c=> c.id === cid) : null;
+    const list = projects.filter(p=> !p.seed && (!cid || (p.collectionIds||[]).includes(cid)));
+    if(!list.length){ setPubStatus('Rien à publier : aucun projet dans cette sélection.', 'error'); return; }
+    const scope = coll ? `collection « ${coll.name} »` : 'tout le relevé';
+    if(!confirm(`Publier ${list.length} projet(s) (${scope}) sur ${repo} ?\n\nIls seront consultables par tout le monde${withNotes ? ', notes et commentaires compris' : ''}.`)) return;
+
+    // Copie nettoyée : ni données internes, ni collections personnelles, ni notes privées (sauf choix contraire)
+    const clean = list.map(p=>{
+      const {seed, updatedAt, collectionIds, ...rest} = p;
+      if(!withNotes){ delete rest.notes; delete rest.comments; }
+      return rest;
+    });
+    const payload = {v: 1, app: 'atlas-architecture', publishedAt: new Date().toISOString(), scope, projects: clean};
+    const btn = document.getElementById('pubBtn');
+    btn.disabled = true;
+    setPubStatus('Publication en cours…');
+    try{
+      const url = `https://api.github.com/repos/${repo}/contents/${PUBLISHED_PATH}`;
+      const cur = await ghFetch(url, {method: 'GET'});
+      if(!cur.ok && cur.status !== 404) throw await ghError(cur);
+      const sha = cur.ok ? (await cur.json()).sha : null;
+      const body = {message: `Publication de la sélection (${list.length} projet(s))`, content: b64encode(JSON.stringify(payload))};
+      if(sha) body.sha = sha;
+      const res = await ghFetch(url, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+      if(res.status === 403 || res.status === 404){
+        throw new Error('Le jeton n\'a pas accès en écriture au dépôt public : ajoute-le dans les réglages du jeton (Repository access), avec Contents : Read and write.');
+      }
+      if(!res.ok) throw await ghError(res);
+      syncConfig.publicRepo = repo;
+      try{ localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }catch(e){}
+      published = payload;
+      rebuildMarkers();
+      setPubStatus(`Publié : ${list.length} projet(s), ${scope}. Visible sur le site d'ici quelques minutes (jusqu'à une dizaine), le temps que GitHub Pages se mette à jour.`, 'ok');
+    }catch(e){
+      setPubStatus(e.name === 'AbortError' || e.name === 'TypeError' ? 'Réseau indisponible : publication impossible.' : e.message, 'error');
+    }finally{
+      btn.disabled = false;
+    }
+  };
   document.getElementById('syncMenuBtn').onclick = openSyncPanel;
   document.getElementById('syncClose').onclick = ()=> syncOverlay.classList.remove('show');
   syncOverlay.addEventListener('click', (e)=>{ if(e.target === syncOverlay) syncOverlay.classList.remove('show'); });
@@ -2929,6 +3108,7 @@
         map.fitBounds(bounds.pad(0.4));
       }
       loadReference(); // sans await : la carte personnelle s'affiche sans attendre la référence
+      loadPublished();
       if(syncConfig) performSync(false);
     }catch(err){
       document.getElementById('map').innerHTML =

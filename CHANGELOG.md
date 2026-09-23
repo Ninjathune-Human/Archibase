@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.0
+### Ajouté
+- Publication : bouton « Publier sur Archibase » qui fige l'état du relevé (tout, ou une collection) dans `data/published.json` du dépôt public ; notes et commentaires exclus par défaut.
+- Les visiteurs consultent la sélection publiée à la place des exemples de démonstration, en fiches en lecture seule ; recherche et filtres s'y appliquent.
+- Panneau de synchronisation reconnu par les gestionnaires de mots de passe (dépôt = identifiant, jeton = mot de passe).
+
+### Changé
+- Exemples de saisie distincts des valeurs réelles dans le panneau de synchronisation, messages d'erreur plus explicites.
+
 ## 1.9.0
 ### Ajouté
 - Synchronisation multi-appareils du relevé personnel via un dépôt GitHub privé (menu ⇅ → Synchronisation) : fusion projet par projet sur la date de modification, suppressions mémorisées, gestion des conflits d'écriture, fonctionnement hors ligne avec envoi au retour du réseau.
