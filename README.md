@@ -8,21 +8,44 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 
 ## Fonctionnalités
 
-- **Carte** — fond vectoriel OpenFreeMap (MapLibre GL), rendu net à tout niveau de zoom, regroupement des épingles selon le zoom
-- **Épingles** — blanches par défaut, rouges une fois marquées « visité » (bascule rapide depuis la fiche du projet), déplaçables par glisser-déposer
-- **Création rapide** — clic sur la carte (ou géocodage d'une adresse), 5 champs essentiels : nom, architecte, année, adresse, photo d'illustration
-- **Fiche à onglets** — un seul clic sur une épingle ouvre directement la fiche complète (Infos / Photos / Plans / Commentaires), sans étape intermédiaire
-- **Recherche automatique** — bouton « Compléter automatiquement » qui va chercher sur Wikidata l'architecte, l'année, la ville, la photo et le lien source manquants, sans écraser les champs déjà renseignés
-- **Enrichissement libre** — photos multiples, plans/documents (libellé + lien), commentaires horodatés (journal cumulatif), notes, ville, lien source
-- **Recherche** — par nom, architecte ou ville, navigable au clavier
-- **Collections** — regrouper des projets dans des ensembles nommés, affichables/masquables indépendamment sur la carte ; un projet peut appartenir à plusieurs collections
-- **Filtres** — par typologie, décennie de réalisation et statut visité/non visité, combinables entre eux et avec les collections
-- **Import automatique depuis Wikidata** — par architecte, par lieu (rayon réglable), ou par année d'achèvement/ouverture ; lien de recherche rapide vers **Structurae** sur chaque fiche
-- **Export / import JSON** — sauvegarde et restauration de toutes les données depuis le menu « ⋯ », pour ne rien perdre lors des mises à jour de l'app
-- **Accessibilité** — focus clavier visible, cibles tactiles 44px, contraste AA, `aria-label` sur les contrôles, zones sûres iPhone, respect de `prefers-reduced-motion`
-- **Fiabilité réseau** — délai maximal sur chaque appel externe (Wikidata, géocodage), avec état de chargement visible ; aucune recherche ne peut rester bloquée silencieusement
-- **Base de référence** — couche grise de bâtiments d'architecte, activable depuis le menu Filtres ; un point s'ouvre en fiche préremplie et s'ajoute au relevé en un geste
-- **Stockage local** — `localStorage`, aucun serveur, aucun compte requis
+**Carte**
+- Fond vectoriel OpenFreeMap (MapLibre GL) recoloré pour la lisibilité : bâtiments, rues, eau et voies ferrées distincts ; noms des pays et capitales seuls aux zooms larges
+- Épingles blanches, rouges une fois « visité », regroupées selon le zoom ; légende repliable
+- Épingles figées par défaut ; déplacement via « Déplacer l'épingle » dans la fiche, avec Valider / Annuler
+- « Autour de moi » : centrage sur la position de l'appareil
+
+**Projets**
+- Création rapide : clic sur la carte ou adresse géocodée, 5 champs essentiels (nom, architecte, année, adresse, photo)
+- Fiche à onglets Infos / Photos / Plans / Commentaires / Collections, avec bannière photo et lien « Ouvrir » vers l'article
+- « Compléter automatiquement » : base de référence locale, puis Wikidata, infobox Wikipédia et Wikimedia Commons ; adresse déduite de la position en dernier recours ; les champs déjà remplis ne sont jamais écrasés
+- Bouton d'effacement dans les champs de saisie
+
+**Trouver et organiser**
+- Recherche par nom, architecte ou ville : la carte et la liste se filtrent en direct
+- Panneau « Affichage » : couches, filtres (typologie, décennie, statut) et collections ; chaque filtre actif apparaît en pastille retirable
+- Vue liste triable (nom, architecte, année, ville)
+- Collections : un projet peut appartenir à plusieurs
+
+**Importer**
+- Depuis la base de référence ou Wikidata : par architecte, par lieu (rayon réglable) ou par année
+- Sans doublon : un bâtiment déjà présent (même identifiant Wikidata, ou même nom à moins de 150 m) n'est jamais recréé
+- Affectation directe de la sélection à une collection, existante ou nouvelle
+- « Fusionner les doublons » : fusion des fiches en double sans perte d'information, et vérification des épingles superposées
+
+**Partager**
+- Publication d'un état figé (tout le relevé ou une collection) consultable par tous, notes et commentaires exclus par défaut
+- Fiche éditoriale pour les visiteurs : grande photo et galerie, architecte et année, adresse avec itinéraire, plans, liens (Wikipédia, Wikidata, Structurae)
+- Liens partageables `#projet=…` et `#q=…`, bouton Partager (feuille de partage native sur iPhone et iPad)
+
+**Données**
+- Stockage dans le navigateur (`localStorage`), sans compte
+- Synchronisation facultative entre appareils via un dépôt GitHub privé
+- Export / import JSON depuis le menu Données
+
+**Qualité**
+- Accessibilité : focus clavier visible, cibles tactiles de 44 px, contraste AA, `aria-label`, zones sûres iPhone, `prefers-reduced-motion`
+- Délai maximal sur chaque appel réseau, avec état de chargement visible
+- Identité : logo en tracés régulateurs (nombre d'or), une seule famille de polices (IBM Plex), jeu d'icônes dessinées
 
 ## Base de référence
 

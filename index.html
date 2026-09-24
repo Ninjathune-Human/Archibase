@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atlas — relevé de projets d'architecture</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230A0A0A'/%3E%3Cpath d='M5 27 V5 H27' fill='none' stroke='%23FAFAF8' stroke-width='3'/%3E%3Cpath d='M11 21 H21 V11' fill='none' stroke='%23FAFAF8' stroke-width='2'/%3E%3Crect x='18.5' y='18.5' width='5' height='5' fill='%23E1332B'/%3E%3C/svg%3E" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23111214'/%3E%3Cg fill='none' stroke='%23FAFAF8' stroke-linecap='square'%3E%3Cpath d='M19.069 3V29M3 19.069H19.069' stroke-width='1.2' opacity='0.6'/%3E%3Cpath d='M3 29L29 3M3 3L19.069 29' stroke-width='1.2' opacity='0.45'/%3E%3Crect x='3' y='3' width='26' height='26' stroke-width='2'/%3E%3C/g%3E%3Crect x='10.631' y='16.769' width='4.6' height='4.6' fill='%23E1332B'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" />
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
     --ink:#0A0A0A;
+    --map-bg:#111214;   /* anthracite du fond de carte, aussi visible pendant le chargement des tuiles */
     --ink-2:#161616;
     --grid:#282828;
     --blueprint:#EDEDEA;
@@ -59,7 +60,7 @@
   }
   #map{
     position:absolute; inset:0;
-    background:var(--ink);
+    background:var(--map-bg);
   }
   /* subtle blueprint grid overlay */
   #grid-overlay{
@@ -94,16 +95,17 @@
     .panel{ background:var(--ink-2); backdrop-filter:none; -webkit-backdrop-filter:none; }
   }
   #brand{
-    padding:8px 18px;
-    display:flex; flex-direction:row; align-items:center; gap:10px;
-    border-left:3px solid var(--copper);
+    padding:8px 20px 8px 12px;
+    display:flex; flex-direction:row; align-items:center; gap:12px;
     overflow:hidden;
   }
-  #brandMark{flex-shrink:0;}
-  .brand-text{display:flex; flex-direction:column; gap:2px;}
+  #brandMark{flex-shrink:0; display:block;}
+  .brand-text{display:flex; flex-direction:column; gap:3px;}
+  /* Signature en capitales espacées, à la manière des agences d'architecture */
   #brand .title{
-    font-family:'Space Grotesk', sans-serif;
-    font-weight:600; font-size:16px; letter-spacing:0.02em;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-weight:500; font-size:14px; letter-spacing:0.32em; text-transform:uppercase;
+    margin-right:-0.32em; /* compense l'espacement après la dernière lettre */
     color:var(--paper);
   }
   #brand .subtitle{
@@ -147,7 +149,7 @@
     background:var(--ink);
     color:var(--copper);
     border:1.5px solid var(--copper); border-radius:var(--radius-full);
-    font-family:'Space Grotesk'; font-weight:600; font-size:13px;
+    font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:13px;
     letter-spacing:0.03em;
     cursor:pointer;
     pointer-events:auto;
@@ -162,7 +164,7 @@
     background:var(--copper);
     color:var(--ink);
     border:none; border-radius:var(--radius-full);
-    font-family:'Space Grotesk'; font-weight:600; font-size:13px;
+    font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:13px;
     letter-spacing:0.03em;
     cursor:pointer;
     pointer-events:auto;
@@ -171,34 +173,43 @@
     transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
   }
   #wdBtn:hover{background:var(--copper-bright); transform:translateY(-1px);}
-  .btn-icon{font-size:15px; line-height:1;}
+  /* Jeu d'icônes : trait fin, angles francs, extrémités carrées (même dessin que le logo) */
+  .ico{width:18px; height:18px; display:block; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:square; stroke-linejoin:miter;}
+  .btn-icon{display:flex; align-items:center;}
+  #dataMenu .ico{width:16px; height:16px; color:var(--text-dim);}
+  #dataMenu button:hover .ico{color:var(--paper);}
+  #refToggleBtn.on .ico{color:var(--copper);}
+  .m-close .ico{width:18px; height:18px;}
+  .ico-inline{display:inline-block; width:14px; height:14px; vertical-align:-2px;}
+  #autofillBtn{display:inline-flex; align-items:center; gap:8px;}
+  #autofillBtn .ico{width:15px; height:15px;}
 
   .more-wrap{position:relative; pointer-events:auto;}
-  #viewBtn, #dataBtn{
+  #viewBtn, #listBtn{position:relative; pointer-events:auto;} /* hors de .more-wrap : point d'indication et clics */
+  #viewBtn, #dataBtn, #listBtn{
     min-height:44px; min-width:44px; padding:0 14px;
     background:var(--ink-2);
     background:color-mix(in srgb, var(--ink-2) 88%, transparent); color:var(--blueprint);
     border:1px solid var(--blueprint-dim); border-radius:var(--radius-full);
     cursor:pointer; display:flex; align-items:center; justify-content:center;
-    font-size:18px; letter-spacing:0.05em;
     transition:background var(--duration-fast) var(--ease-standard);
   }
-  #viewBtn:hover, #dataBtn:hover{background:var(--grid);}
-  #viewMenu, #dataMenu{
+  #viewBtn:hover, #dataBtn:hover, #listBtn:hover{background:var(--grid);}
+  #dataMenu{
     display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:1100;
     background:var(--ink-2);
     background:color-mix(in srgb, var(--ink) 94%, transparent); border:1px solid var(--grid); border-radius:var(--radius-md);
     min-width:240px; overflow:hidden; box-shadow:var(--shadow-md);
   }
-  #viewMenu.show, #dataMenu.show{display:block;}
-  #viewMenu button, #dataMenu button{
+  #dataMenu.show{display:block;}
+  #dataMenu button{
     display:flex; align-items:center; gap:10px; width:100%; min-height:44px;
     padding:0 14px; background:none; border:none; text-align:left; cursor:pointer;
     font-family:'IBM Plex Sans'; font-size:13px; color:var(--paper);
     border-bottom:1px solid var(--grid);
   }
-  #viewMenu button:last-of-type, #dataMenu button:last-of-type{border-bottom:none;}
-  #viewMenu button:hover, #dataMenu button:hover{background:rgba(255,255,255,0.08);}
+  #dataMenu button:last-of-type{border-bottom:none;}
+  #dataMenu button:hover{background:rgba(255,255,255,0.08);}
 
   /* Compact topbar: stack search on its own row, buttons become icon-only 44x44.
      900px covers iPad portrait (~768-834px), not just phones. */
@@ -259,7 +270,7 @@
     background:var(--paper-dim);
   }
   .ac-body{padding:10px 12px;}
-  .ac-title{font-family:'Space Grotesk'; font-weight:600; font-size:13px; line-height:1.25; margin-bottom:3px;}
+  .ac-title{font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:13px; line-height:1.25; margin-bottom:3px;}
   .ac-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#4D4D4D; letter-spacing:0.02em;}
   .ac-links{display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:6px;}
   .ac-link{
@@ -314,7 +325,7 @@
     display:flex; justify-content:space-between; align-items:center;
   }
   #modal .m-head h2{
-    font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;
+    font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;
   }
   #modal .m-head .m-eyebrow{
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
@@ -384,7 +395,7 @@
   }
   .btn-primary{
     background:var(--copper); color:var(--ink); border:none; padding:10px 22px; min-height:44px;
-    font-family:'Space Grotesk'; font-weight:600; font-size:13px; border-radius:var(--radius-full); cursor:pointer;
+    font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:13px; border-radius:var(--radius-full); cursor:pointer;
     box-shadow:var(--shadow-sm);
     transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
   }
@@ -454,7 +465,7 @@
   #moveBar span{overflow:hidden; text-overflow:ellipsis;}
   #moveBar button{
     min-height:36px; padding:0 14px; border-radius:var(--radius-full); cursor:pointer; flex-shrink:0;
-    font-family:'Space Grotesk'; font-weight:600; font-size:12px;
+    font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:12px;
   }
   #moveCancel{background:none; color:var(--paper); border:1px solid var(--blueprint-dim);}
   #moveConfirm{background:var(--copper); color:var(--ink); border:none;}
@@ -468,6 +479,14 @@
   #crosshairHint.show{display:block;}
 
   .leaflet-control-zoom{border:1px solid var(--grid) !important;}
+  .locate-control{border:1px solid var(--grid) !important;}
+  .locate-btn{
+    display:flex !important; align-items:center; justify-content:center; width:34px !important; height:34px !important;
+    background:var(--ink-2) !important; color:var(--blueprint) !important;
+  }
+  .locate-btn .ico{width:18px; height:18px;}
+  .locate-btn.locating .ico{color:var(--copper); animation:locatePulse 1s ease-in-out infinite;}
+  @keyframes locatePulse{50%{opacity:0.35;}}
   .leaflet-control-zoom a{
     background:var(--ink-2) !important; color:var(--blueprint) !important;
     border-color:var(--grid) !important;
@@ -481,7 +500,7 @@
   .marker-cluster-custom{
     background:var(--copper); color:var(--ink);
     border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-family:'Space Grotesk'; font-weight:700; font-size:12px;
+    font-family:'IBM Plex Sans', sans-serif; font-weight:700; font-size:12px;
     border:2px solid var(--ink);
   }
   /* Grappes de la base de référence : grises, en retrait par rapport au relevé personnel */
@@ -492,32 +511,172 @@
     border:1.5px solid var(--blueprint-dim);
     font-family:'IBM Plex Mono', monospace; font-size:10px;
   }
-  #viewMenu button:disabled{opacity:0.5; cursor:default;}
-  #viewMenu button:disabled:hover{background:none;}
 
-  /* Filters panel */
-  #filtersOverlay{
-    position:fixed; inset:0; background:rgba(11,20,33,0.75);
-    z-index:2000; display:none; align-items:center; justify-content:center;
-    backdrop-filter:blur(2px);
+  .m-head-actions{display:flex; align-items:center; gap:2px;}
+  #shareBtn{margin-right:0;}
+
+  /* Fiche éditoriale (consultation d'un projet publié) */
+  #pubViewOverlay{position:fixed; inset:0; z-index:2000; display:none; align-items:center; justify-content:center; background:rgba(11,20,33,0.75); backdrop-filter:blur(2px);}
+  #pubViewOverlay.show{display:flex;}
+  #pubView{width:min(580px, 94vw); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; background:var(--paper); color:var(--text-on-paper); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);}
+  #pubView .m-head{padding:12px 16px 12px 24px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
+  #pubView .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E;}
+  #pubViewBody{overflow-y:auto; flex:1;}
+  .pv-hero{aspect-ratio:3 / 2; background:var(--paper-dim);}
+  .pv-hero img{width:100%; height:100%; object-fit:cover; display:block;}
+  .pv-thumbs{display:flex; gap:6px; padding:8px 24px 0; overflow-x:auto; scrollbar-width:none;}
+  .pv-thumbs::-webkit-scrollbar{display:none;}
+  .pv-thumb{flex-shrink:0; width:56px; height:56px; padding:0; border:2px solid transparent; border-radius:var(--radius-xs); overflow:hidden; cursor:pointer; background:var(--paper-dim);}
+  .pv-thumb.active{border-color:var(--copper);}
+  .pv-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .pv-text{padding:22px 24px calc(28px + env(safe-area-inset-bottom, 0px));}
+  .pv-kicker{font-family:'IBM Plex Mono', monospace; font-size:10.5px; text-transform:uppercase; letter-spacing:0.1em; color:#6E6E6E; margin-bottom:8px;}
+  .pv-title{font-family:'IBM Plex Sans', sans-serif; font-size:28px; line-height:1.15; font-weight:600; letter-spacing:-0.01em; margin:0;}
+  .pv-byline{font-family:'IBM Plex Sans', sans-serif; font-size:16px; color:#3A3A3A; margin-top:8px;}
+  .pv-visited{display:inline-block; margin-top:12px; font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--copper); border:1px solid var(--copper); padding:3px 8px; border-radius:var(--radius-xs);}
+  .pv-block{margin-top:22px; padding-top:18px; border-top:1px solid var(--paper-dim);}
+  .pv-label{font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:8px;}
+  .pv-address{font-size:14px; line-height:1.5;}
+  .pv-maps{display:inline-flex; align-items:center; min-height:44px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
+  .pv-notes{font-size:15px; line-height:1.65; margin:0; color:#2A2A2A;}
+  .pv-comment{margin:0 0 10px; padding:10px 14px; border-left:2px solid var(--copper); background:#F3F2EE; font-size:14px; line-height:1.5;}
+  .pv-comment span{display:block; margin-top:4px; font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E;}
+  .pv-link{display:inline-flex; align-items:center; gap:8px; min-height:40px; margin:0 8px 8px 0; padding:0 14px; border-radius:var(--radius-full); background:var(--ink); color:var(--paper); text-decoration:none; font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.04em; transition:background var(--duration-fast) var(--ease-standard);}
+  .pv-link svg{width:11px; height:11px;}
+  .pv-link:hover{background:var(--copper);}
+  @media (max-width: 600px){
+    #pubViewOverlay{align-items:flex-end;}
+    #pubView{width:100%; max-height:92vh; border-radius:var(--radius-lg) var(--radius-lg) 0 0;}
+    .pv-title{font-size:24px;}
   }
-  #filtersOverlay.show{display:flex;}
-  #filtersModal{
-    width:460px; max-width:94vw; max-height:88vh; overflow-y:auto;
-    background:var(--paper); color:var(--text-on-paper);
-    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
+
+  /* Pastilles des filtres actifs */
+  #filterChips{flex-basis:100%; display:flex; flex-wrap:wrap; gap:6px; pointer-events:none;}
+  #filterChips:empty{display:none;}
+  .filter-chip{
+    pointer-events:auto; display:inline-flex; align-items:center; gap:6px;
+    min-height:32px; padding:0 10px 0 12px; border-radius:var(--radius-full);
+    background:var(--ink-2); background:color-mix(in srgb, var(--ink-2) 88%, transparent);
+    backdrop-filter:blur(20px) saturate(1.6); -webkit-backdrop-filter:blur(20px) saturate(1.6);
+    border:1px solid var(--copper); color:var(--paper); cursor:pointer;
+    font-family:'IBM Plex Sans', sans-serif; font-size:12px; max-width:100%;
+  }
+  .filter-chip span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .filter-chip .ico{width:12px; height:12px; color:var(--text-dim);}
+  .filter-chip:hover .ico{color:var(--paper);}
+  .filter-chip.chip-all{border-color:var(--blueprint-dim); color:var(--text-dim); padding:0 12px;}
+
+  /* Bouton d'effacement des champs */
+  .clearable{position:relative; display:flex; align-items:center; min-width:0;}
+  .clearable > input{flex:1 1 auto; width:100%; min-width:0; padding-right:36px !important;}
+  .clear-btn{
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:28px; height:28px; padding:0; display:none; align-items:center; justify-content:center;
+    background:none; border:none; border-radius:var(--radius-full); cursor:pointer; color:#8E8E8A;
+    transition:color var(--duration-fast) var(--ease-standard);
+  }
+  .clear-btn .ico{width:14px; height:14px;}
+  .clear-btn:hover{color:var(--text-on-paper);}
+  .clearable > input:not(:placeholder-shown):not(:disabled) ~ .clear-btn{display:flex;}
+  .link-field .clearable > input{padding-right:132px !important;}  /* place pour la pastille « Ouvrir » */
+  .link-field .clear-btn{right:100px;}
+
+  /* Mention de chargement */
+  #loadingNote{
+    position:absolute; left:50%; bottom:calc(30px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); z-index:1000;
+    display:none; align-items:center; gap:8px; padding:8px 14px; border-radius:var(--radius-full);
+    background:var(--ink-2); border:1px solid var(--grid); color:var(--text-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:11px; white-space:nowrap; box-shadow:var(--shadow-sm);
+  }
+  #loadingNote.show{display:flex;}
+  .ln-dot{width:6px; height:6px; background:var(--copper); animation:locatePulse 1s ease-in-out infinite;}
+
+  /* Légende de la carte */
+  #legend{
+    position:absolute; right:12px; bottom:calc(30px + env(safe-area-inset-bottom, 0px)); z-index:1000;
+    min-width:200px; padding:0; border-radius:var(--radius-md); overflow:hidden;
+  }
+  #legendToggle{
+    width:100%; min-height:44px; padding:0 14px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:none; border:none; cursor:pointer; color:var(--paper);
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+  }
+  .lg-chevron{width:16px; height:16px; color:var(--text-dim); transform:rotate(180deg); transition:transform var(--duration-medium) var(--ease-standard);}
+  #legend.collapsed .lg-chevron{transform:rotate(0deg);}
+  #legendBody{display:grid; gap:9px; padding:2px 14px 14px;}
+  #legend.collapsed #legendBody{display:none;}
+  .lg-row{display:flex; align-items:center; gap:12px; font-size:12px; color:var(--paper);}
+  .lg-sym{width:24px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .lg-cluster{width:22px !important; height:22px !important; font-size:9px !important; border-width:1.5px !important;}
+  .lg-ref{display:none !important;}
+  #legend.show-ref .lg-ref{display:flex !important;}
+  .lg-hint{font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--text-dim); padding-top:2px; border-top:1px solid var(--grid); margin-top:2px; padding-top:8px;}
+
+  /* Panneau Liste : glisse depuis la gauche ; feuille par le bas sur iPhone */
+  #listPanel{
+    position:fixed; top:0; left:0; bottom:0; width:min(400px, 100vw); z-index:1500;
     display:flex; flex-direction:column;
+    background:var(--paper); color:var(--text-on-paper); box-shadow:var(--shadow-lg);
+    padding-top:env(safe-area-inset-top, 0px);
+    transform:translateX(-105%); visibility:hidden;
+    transition:transform var(--duration-medium) var(--ease-standard), visibility 0s linear var(--duration-medium);
   }
-  #filtersModal .m-head{
-    padding:16px 20px; border-bottom:2px solid var(--copper);
-    display:flex; justify-content:space-between; align-items:center;
+  #listPanel.open{transform:none; visibility:visible; transition:transform var(--duration-medium) var(--ease-standard), visibility 0s;}
+  #listPanel .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
+  #listPanel .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
+  #listPanel .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
+  .lp-sort{display:flex; align-items:center; gap:10px; padding:10px 20px; border-bottom:1px solid var(--paper-dim); flex-shrink:0;}
+  .lp-sort label{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:#6E6E6E; white-space:nowrap;}
+  .lp-sort select{flex:1; min-height:40px; padding:0 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm); background:#fff; font-family:'IBM Plex Sans'; font-size:13px; color:var(--text-on-paper);}
+  .lp-body{flex:1; overflow-y:auto; padding:4px 12px calc(20px + env(safe-area-inset-bottom, 0px));}
+  .lp-item{
+    width:100%; display:flex; align-items:center; gap:12px; padding:10px 8px; min-height:64px;
+    background:none; border:none; border-bottom:1px solid var(--paper-dim); cursor:pointer; text-align:left;
+    border-radius:var(--radius-xs); transition:background var(--duration-fast) var(--ease-standard);
   }
-  #filtersModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
-  #filtersModal .m-head .m-eyebrow{
-    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    color:#6E6E6E; margin-bottom:3px;
+  .lp-item:hover, .lp-item:focus-visible{background:rgba(0,0,0,0.04);}
+  .lp-thumb{width:52px; height:52px; flex-shrink:0; border-radius:var(--radius-xs); object-fit:cover; background:var(--paper-dim); display:block;}
+  .lp-text{min-width:0; flex:1;}
+  .lp-title{font-family:'IBM Plex Sans'; font-size:14px; font-weight:600; color:var(--text-on-paper); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lp-meta{font-family:'IBM Plex Mono'; font-size:10.5px; color:#6E6E6E; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lp-visited{flex-shrink:0; font-family:'IBM Plex Mono'; font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--copper);}
+  .lp-more{width:100%; margin-top:12px;}
+  .lp-empty{padding:30px 10px; text-align:center; font-size:13px; color:#6E6E6E;}
+  @media (max-width: 600px){
+    #listPanel{top:auto; right:0; width:100%; height:85vh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; transform:translateY(105%); padding-top:0;}
+    #listPanel.open{transform:none;}
   }
-  #filtersModal .wd-body{padding:16px 20px;}
+
+  /* Panneau Affichage : glisse depuis la droite ; feuille par le bas sur iPhone */
+  #viewPanel{
+    position:fixed; top:0; right:0; bottom:0; width:min(380px, 100vw); z-index:1500;
+    display:flex; flex-direction:column;
+    background:var(--paper); color:var(--text-on-paper); box-shadow:var(--shadow-lg);
+    padding-top:env(safe-area-inset-top, 0px);
+    transform:translateX(105%); visibility:hidden;
+    transition:transform var(--duration-medium) var(--ease-standard), visibility 0s linear var(--duration-medium);
+  }
+  #viewPanel.open{transform:none; visibility:visible; transition:transform var(--duration-medium) var(--ease-standard), visibility 0s;}
+  #viewPanel .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
+  #viewPanel .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
+  #viewPanel .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
+  .vp-body{flex:1; overflow-y:auto; padding:6px 20px calc(24px + env(safe-area-inset-bottom, 0px));}
+  .vp-section{padding:16px 0; border-bottom:1px solid var(--paper-dim);}
+  .vp-section:last-child{border-bottom:none;}
+  .vp-title{font-family:'IBM Plex Sans', sans-serif; font-size:14px; font-weight:600; margin:0 0 10px;}
+  #refToggleBtn{
+    width:100%; min-height:44px; display:flex; align-items:center; gap:10px; padding:0 12px;
+    background:#fff; border:1px solid var(--paper-dim); border-radius:var(--radius-sm); cursor:pointer;
+    font-family:'IBM Plex Sans', sans-serif; font-size:13px; color:var(--text-on-paper); text-align:left;
+  }
+  #refToggleBtn .ico{width:16px; height:16px; color:#6E6E6E;}
+  #refToggleBtn.on{border-color:var(--copper);}
+  #refToggleBtn:disabled{opacity:0.5; cursor:default;}
+  @media (max-width: 600px){
+    #viewPanel{top:auto; left:0; width:100%; height:80vh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; transform:translateY(105%); padding-top:0;}
+    #viewPanel.open{transform:none;}
+  }
+
   .filter-bulk{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
   .filter-section{margin-top:18px;}
   .filter-section:first-of-type{margin-top:12px;}
@@ -530,18 +689,6 @@
     border-radius:50%; background:var(--copper); border:1.5px solid var(--ink);
   }
 
-  /* Fiche en lecture seule (sélection publiée) */
-  #modal.readonly .m-actions,
-  #modal.readonly #autofillBtn, #modal.readonly #autofillStatus,
-  #modal.readonly #geocodeBtn, #modal.readonly #geocodeStatus,
-  #modal.readonly #f-collections-field, #modal.readonly .m-tab[data-mtab="collections"],
-  #modal.readonly .m-body .field-row:has(> .wd-btn),
-  #modal.readonly .photo-chip button, #modal.readonly .link-row button, #modal.readonly .comment-row button{display:none !important;}
-  #modal.readonly .m-body input:disabled, #modal.readonly .m-body textarea:disabled, #modal.readonly .m-body select:disabled{
-    background:transparent; border-color:transparent; color:var(--text-on-paper); opacity:1;
-    -webkit-text-fill-color:var(--text-on-paper); padding-left:0;
-  }
-  #modal.readonly .m-body input:disabled::placeholder, #modal.readonly .m-body textarea:disabled::placeholder{color:transparent;}
 
   /* Sync panel */
   #syncOverlay{
@@ -559,7 +706,7 @@
     padding:16px 20px; border-bottom:2px solid var(--copper);
     display:flex; justify-content:space-between; align-items:center;
   }
-  #syncModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #syncModal .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
   #syncModal .m-head .m-eyebrow{
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
     color:#6E6E6E; margin-bottom:3px;
@@ -575,7 +722,7 @@
   .sync-status.error{border-left-color:var(--danger); color:var(--danger);}
   .sync-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 16px;}
   .pub-section{margin-top:18px; padding-top:16px; border-top:1px solid var(--paper-dim);}
-  .pub-title{font-family:'Space Grotesk'; font-weight:600; font-size:14px; margin-bottom:10px;}
+  .pub-title{font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:14px; margin-bottom:10px;}
   #syncModal select{width:100%;}
   #dataBtn.sync-error::after{
     content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
@@ -594,7 +741,7 @@
     border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
   }
   #dupModal .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center;}
-  #dupModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #dupModal .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
   #dupModal .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
   #dupModal .wd-body{padding:16px 20px;}
   .dup-group{border:1px solid var(--paper-dim); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:10px;}
@@ -604,29 +751,6 @@
   .dup-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E; margin-top:2px;}
   .dup-actions{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:10px;}
 
-  /* Collections panel */
-  #collectionsOverlay{
-    position:fixed; inset:0; background:rgba(11,20,33,0.75);
-    z-index:2000; display:none; align-items:center; justify-content:center;
-    backdrop-filter:blur(2px);
-  }
-  #collectionsOverlay.show{display:flex;}
-  #collectionsModal{
-    width:460px; max-width:94vw; max-height:88vh; overflow-y:auto;
-    background:var(--paper); color:var(--text-on-paper);
-    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
-    display:flex; flex-direction:column;
-  }
-  #collectionsModal .m-head{
-    padding:16px 20px; border-bottom:2px solid var(--copper);
-    display:flex; justify-content:space-between; align-items:center;
-  }
-  #collectionsModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
-  #collectionsModal .m-head .m-eyebrow{
-    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    color:#6E6E6E; margin-bottom:3px;
-  }
-  #collectionsModal .wd-body{padding:16px 20px;}
   .collections-list{margin-top:12px; display:flex; flex-direction:column; gap:2px;}
   .collection-row{
     display:flex; align-items:center; gap:10px; padding:10px 4px; min-height:44px;
@@ -672,7 +796,7 @@
     padding:16px 20px; border-bottom:2px solid var(--blueprint-dim);
     display:flex; justify-content:space-between; align-items:center;
   }
-  #wdModal .m-head h2{font-family:'Space Grotesk'; font-size:16px; margin:0; font-weight:600;}
+  #wdModal .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
   #wdModal .m-head .m-eyebrow{
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
     color:#6E6E6E; margin-bottom:3px;
@@ -734,26 +858,40 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3V14M7.5 9.5L12 14L16.5 9.5M4 15V20H20V15"/></symbol>
+  <symbol id="i-add" viewBox="0 0 24 24"><path d="M12 5V19M5 12H19"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6L18 18M18 6L6 18"/></symbol>
+  <symbol id="i-view" viewBox="0 0 24 24"><path d="M3 7H21M3 17H21"/><rect x="7" y="4.5" width="5" height="5" fill="currentColor" stroke="none"/><rect x="13" y="14.5" width="5" height="5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-data" viewBox="0 0 24 24"><path d="M8 20V4M4 8L8 4L12 8M16 4V20M12 16L16 20L20 16"/></symbol>
+  <symbol id="i-collections" viewBox="0 0 24 24"><path d="M3 8H17V20H3ZM7 8V4H21V16H17"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5H20L14 12.5V19L10 20.5V12.5Z"/></symbol>
+  <symbol id="i-layer" viewBox="0 0 24 24"><path d="M4 4H9V9H4ZM15 4H20V9H15ZM4 15H9V20H4ZM15 15H20V20H15Z"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M19.5 10A8 8 0 0 0 5.5 6.5M4 3V8H9M4.5 14A8 8 0 0 0 18.5 17.5M20 21V16H15"/></symbol>
+  <symbol id="i-merge" viewBox="0 0 24 24"><path d="M3 3H15V15H3ZM9 9H21V21H9Z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4V15M7.5 10.5L12 15L16.5 10.5M5 20H19"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V9M7.5 13.5L12 9L16.5 13.5M5 4H19"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3V15M7.5 7.5L12 3L16.5 7.5M5 11V21H19V11"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6H20M9 12H20M9 18H20M4 5H6V7H4ZM4 11H6V13H4ZM4 17H6V19H4Z"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><path d="M12 2V6M12 18V22M2 12H6M18 12H22M7 7H17V17H7Z"/><rect x="10.5" y="10.5" width="3" height="3" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9L12 15L18 9"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="M4 4H15V15H4ZM15 15L20 20"/></symbol>
+</svg>
+
 
 <div id="map"></div>
 <div id="grid-overlay"></div>
 
 <div id="topbar">
   <div id="brand" class="panel">
-    <svg id="brandMark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true" shape-rendering="crispEdges">
-      <!-- trame de fond, façon papier millimétré -->
-      <g stroke="#FAFAF8" stroke-width="1" opacity="0.28">
-        <line x1="11" y1="2" x2="11" y2="30"/>
-        <line x1="21" y1="2" x2="21" y2="30"/>
-        <line x1="2" y1="11" x2="30" y2="11"/>
-        <line x1="2" y1="21" x2="30" y2="21"/>
+    <svg id="brandMark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+      <!-- Tracés régulateurs : carré, division au nombre d'or, diagonales se croisant sur la ligne d'or -->
+      <g fill="none" stroke="#FAFAF8" stroke-linecap="square">
+        <path d="M19.069 3V29M3 19.069H19.069" stroke-width="0.9" opacity="0.55"/>
+        <path d="M3 29L29 3M3 3L19.069 29" stroke-width="0.9" opacity="0.4"/>
+        <rect x="3" y="3" width="26" height="26" stroke-width="1.6"/>
       </g>
-      <!-- mur d'angle en coupe, trait plein -->
-      <path d="M5 27 V5 H27" fill="none" stroke="#FAFAF8" stroke-width="3"/>
-      <!-- refend intérieur -->
-      <path d="M11 21 H21 V11" fill="none" stroke="#FAFAF8" stroke-width="2"/>
-      <!-- repère au point d'intersection -->
-      <rect x="18.5" y="18.5" width="5" height="5" fill="#E1332B"/>
+      <rect x="11.131" y="17.269" width="3.6" height="3.6" fill="#E1332B"/>
     </svg>
     <div class="brand-text">
       <div class="title">Atlas</div>
@@ -768,47 +906,38 @@
     <div id="searchResults" class="panel"></div>
   </div>
   <button id="wdBtn" aria-label="Importer des bâtiments" title="Importer des bâtiments">
-    <span class="btn-icon" aria-hidden="true">⊕</span><span class="btn-label">Importer des bâtiments</span>
+    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-import"/></svg></span><span class="btn-label">Importer des bâtiments</span>
   </button>
   <button id="addBtn" aria-label="Ajouter un projet" title="Ajouter un projet">
-    <span class="btn-icon" aria-hidden="true">+</span><span class="btn-label">Ajouter un projet</span>
+    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-add"/></svg></span><span class="btn-label">Ajouter un projet</span>
+  </button>
+  <button id="listBtn" aria-label="Vue liste des projets" title="Liste" aria-expanded="false" aria-controls="listPanel">
+    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg></span>
+  </button>
+  <button id="viewBtn" aria-label="Affichage : couches, filtres et collections" title="Affichage" aria-expanded="false" aria-controls="viewPanel">
+    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-view"/></svg></span>
   </button>
   <div class="more-wrap">
-    <button id="viewBtn" aria-label="Filtres et collections" title="Filtres et collections" aria-haspopup="true" aria-expanded="false">
-      <span class="btn-icon" aria-hidden="true">▤</span>
-    </button>
-    <div id="viewMenu" role="menu">
-      <button type="button" id="collectionsMenuBtn" role="menuitem">
-        <span aria-hidden="true">🗂</span> Collections
-      </button>
-      <button type="button" id="filtersMenuBtn" role="menuitem">
-        <span aria-hidden="true">▤</span> Filtres
-      </button>
-      <button type="button" id="refToggleBtn" role="menuitemcheckbox" aria-checked="false" disabled>
-        <span aria-hidden="true">◌</span> <span id="refToggleLabel">Base de référence (chargement…)</span>
-      </button>
-    </div>
-  </div>
-  <div class="more-wrap">
     <button id="dataBtn" aria-label="Importer ou exporter les données" title="Importer ou exporter les données" aria-haspopup="true" aria-expanded="false">
-      <span class="btn-icon" aria-hidden="true">⇅</span>
+      <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-data"/></svg></span>
     </button>
     <div id="dataMenu" role="menu">
       <button type="button" id="syncMenuBtn" role="menuitem">
-        <span aria-hidden="true">⟳</span> <span id="syncMenuLabel">Synchronisation…</span>
+        <svg class="ico" aria-hidden="true"><use href="#i-sync"/></svg> <span id="syncMenuLabel">Synchronisation…</span>
       </button>
       <button type="button" id="dedupBtn" role="menuitem">
-        <span aria-hidden="true">⧉</span> Fusionner les doublons
+        <svg class="ico" aria-hidden="true"><use href="#i-merge"/></svg> Fusionner les doublons
       </button>
       <button type="button" id="exportBtn" role="menuitem">
-        <span aria-hidden="true">↓</span> Exporter les données (.json)
+        <svg class="ico" aria-hidden="true"><use href="#i-download"/></svg> Exporter les données (.json)
       </button>
       <button type="button" id="importBtn" role="menuitem">
-        <span aria-hidden="true">↑</span> Importer des données (.json)
+        <svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg> Importer des données (.json)
       </button>
       <input type="file" id="importFile" accept="application/json" hidden />
     </div>
   </div>
+  <div id="filterChips" aria-label="Filtres actifs"></div>
 </div>
 
 <div id="crosshairHint">Cliquez sur la carte pour placer l'épingle — Échap pour annuler</div>
@@ -818,6 +947,34 @@
   <button type="button" id="moveConfirm">Valider</button>
 </div>
 <div id="toast"></div>
+<div id="loadingNote" role="status" aria-live="polite"><span class="ln-dot" aria-hidden="true"></span>Chargement de la base de référence…</div>
+<div id="legend" class="panel" role="region" aria-label="Légende de la carte">
+  <button id="legendToggle" type="button" aria-expanded="true" aria-controls="legendBody">
+    <span>Légende</span><svg class="ico lg-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+  </button>
+  <div id="legendBody">
+    <div class="lg-row"><span class="lg-sym"><svg width="15" height="20" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" fill="#FAFAF8" stroke="#0A0A0A" stroke-width="1.5"/><circle cx="13" cy="13" r="5" fill="#0A0A0A"/></svg></span>Projet</div>
+    <div class="lg-row"><span class="lg-sym"><svg width="15" height="20" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 0C5.8 0 0 5.8 0 13c0 9 13 21 13 21s13-12 13-21C26 5.8 20.2 0 13 0z" fill="#E1332B" stroke="#0A0A0A" stroke-width="1.5"/><path d="M8 13.5l3.2 3.2L18 10" fill="none" stroke="#FAFAF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Projet visité</div>
+    <div class="lg-row"><span class="lg-sym"><span class="marker-cluster-custom lg-cluster">3</span></span>Groupe de projets</div>
+    <div class="lg-row lg-ref"><span class="lg-sym"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><circle cx="5" cy="5" r="4" fill="#9A9A9A" stroke="#0A0A0A" stroke-width="1"/></svg></span>Base de référence</div>
+    <div class="lg-row lg-ref"><span class="lg-sym"><span class="ref-cluster lg-cluster">12</span></span>Groupe de la base</div>
+    <div class="lg-hint">Touche un groupe pour zoomer dessus.</div>
+  </div>
+</div>
+
+
+<div id="pubViewOverlay">
+  <article id="pubView" aria-labelledby="pvTitle">
+    <div class="m-head">
+      <div><div class="m-eyebrow">Sélection publiée</div></div>
+      <div class="m-head-actions">
+        <button class="m-close" id="pubViewShare" type="button" aria-label="Partager ce projet" title="Partager"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button>
+        <button class="m-close" id="pubViewClose" type="button" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+    <div id="pubViewBody"></div>
+  </article>
+</div>
 
 <div id="modalOverlay">
   <div id="modal">
@@ -826,7 +983,10 @@
         <div class="m-eyebrow" id="modalEyebrow">Nouveau relevé</div>
         <h2 id="modalTitle">Ajouter un projet</h2>
       </div>
-      <button class="m-close" id="modalClose" aria-label="Fermer">×</button>
+      <div class="m-head-actions">
+        <button class="m-close" id="shareBtn" type="button" aria-label="Partager ce projet" title="Partager" style="display:none;"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button>
+        <button class="m-close" id="modalClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+      </div>
     </div>
 
     <div id="modalBanner" style="display:none;">
@@ -848,7 +1008,7 @@
           <input id="f-title" type="text" placeholder="ex. Musée des Confluences" />
         </div>
         <div class="field-row" style="align-items:center;">
-          <button class="wd-btn" id="autofillBtn" type="button">🔍 Compléter automatiquement</button>
+          <button class="wd-btn" id="autofillBtn" type="button"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span>Compléter automatiquement</span></button>
         </div>
         <div class="geocode-status" id="autofillStatus" style="margin-bottom:12px;"></div>
         <div class="field-row">
@@ -955,7 +1115,7 @@
             <button class="wd-btn" id="f-collection-add" type="button">Créer et ajouter</button>
           </div>
         </div>
-        <div class="hint">Touche une pastille pour ajouter ou retirer ce projet. Pour supprimer une collection : menu ▤ → Collections.</div>
+        <div class="hint">Touche une pastille pour ajouter ou retirer ce projet. Pour supprimer une collection : panneau <svg class="ico ico-inline" aria-hidden="true"><use href="#i-view"/></svg> Affichage → Collections.</div>
       </div>
     </div>
     <div class="m-actions">
@@ -965,36 +1125,6 @@
   </div>
 </div>
 
-<div id="filtersOverlay">
-  <div id="filtersModal">
-    <div class="m-head">
-      <div>
-        <div class="m-eyebrow">Organisation</div>
-        <h2>Filtres</h2>
-      </div>
-      <button class="m-close" id="filtersClose" aria-label="Fermer">×</button>
-    </div>
-    <div class="wd-body">
-      <div class="hint">Combine plusieurs critères pour n'afficher qu'une partie des projets sur la carte. Se cumule avec les Collections.</div>
-      <div class="filter-bulk">
-        <button class="wd-btn" id="filtersSelectAll" type="button">Tout sélectionner</button>
-        <button class="wd-btn" id="filtersDeselectAll" type="button">Tout désélectionner</button>
-      </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Typologie</div>
-        <div id="filterTypologyList" class="collections-list"></div>
-      </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Décennie</div>
-        <div id="filterDecadeList" class="collections-list"></div>
-      </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Statut</div>
-        <div id="filterStatusList" class="collections-list"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <div id="syncOverlay">
   <div id="syncModal">
@@ -1003,7 +1133,7 @@
         <div class="m-eyebrow">Données</div>
         <h2>Synchronisation</h2>
       </div>
-      <button class="m-close" id="syncClose" aria-label="Fermer">×</button>
+      <button class="m-close" id="syncClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="wd-body">
       <div id="syncStatus" class="sync-status">Non configurée : les données restent sur cet appareil.</div>
@@ -1055,6 +1185,74 @@
   </div>
 </div>
 
+<aside id="listPanel" aria-label="Liste des projets" aria-hidden="true">
+  <div class="m-head">
+    <div>
+      <div class="m-eyebrow" id="listCount">Projets</div>
+      <h2>Liste</h2>
+    </div>
+    <button class="m-close" id="listPanelClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+  </div>
+  <div class="lp-sort">
+    <label for="listSort">Trier par</label>
+    <select id="listSort">
+      <option value="title">Nom</option>
+      <option value="architect">Architecte</option>
+      <option value="yearDesc">Année (récente d'abord)</option>
+      <option value="yearAsc">Année (ancienne d'abord)</option>
+      <option value="city">Ville</option>
+    </select>
+  </div>
+  <div class="lp-body" id="listBody"></div>
+</aside>
+<aside id="viewPanel" aria-label="Affichage" aria-hidden="true">
+  <div class="m-head">
+    <div>
+      <div class="m-eyebrow">Carte</div>
+      <h2>Affichage</h2>
+    </div>
+    <button class="m-close" id="viewPanelClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+  </div>
+  <div class="vp-body">
+    <section class="vp-section">
+      <h3 class="vp-title">Couches</h3>
+      <button type="button" id="refToggleBtn" role="switch" aria-checked="false" disabled>
+        <svg class="ico" aria-hidden="true"><use href="#i-layer"/></svg> <span id="refToggleLabel">Base de référence (chargement…)</span>
+      </button>
+      <div class="hint" style="margin:8px 0 0;">Des milliers de bâtiments d'architectes, avec photo, issus de Wikidata. Touche un point gris pour ouvrir sa fiche.</div>
+    </section>
+    <section class="vp-section">
+      <h3 class="vp-title">Filtres</h3>
+      <div class="hint">Combine plusieurs critères pour n'afficher qu'une partie des projets sur la carte. Se cumule avec les Collections.</div>
+      <div class="filter-bulk">
+        <button class="wd-btn" id="filtersSelectAll" type="button">Tout sélectionner</button>
+        <button class="wd-btn" id="filtersDeselectAll" type="button">Tout désélectionner</button>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Typologie</div>
+        <div id="filterTypologyList" class="collections-list"></div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Décennie</div>
+        <div id="filterDecadeList" class="collections-list"></div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Statut</div>
+        <div id="filterStatusList" class="collections-list"></div>
+      </div>
+    </section>
+    <section class="vp-section">
+      <h3 class="vp-title">Collections</h3>
+      <div class="hint">Affiche ou masque des groupes de projets sur la carte. Un projet peut appartenir à plusieurs collections à la fois (à assigner depuis sa fiche).</div>
+      <div class="wd-row">
+        <input id="newCollectionInput" type="text" placeholder="Nouvelle collection, ex. Voyage Pays-Bas 2026" />
+        <button class="wd-btn" id="newCollectionAdd" type="button">Créer</button>
+      </div>
+      <div id="collectionsList" class="collections-list"></div>
+    </section>
+  </div>
+</aside>
+
 <div id="dupOverlay">
   <div id="dupModal">
     <div class="m-head">
@@ -1062,7 +1260,7 @@
         <div class="m-eyebrow">Données</div>
         <h2>Épingles superposées</h2>
       </div>
-      <button class="m-close" id="dupClose" aria-label="Fermer">×</button>
+      <button class="m-close" id="dupClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="wd-body">
       <div class="hint" id="dupCount"></div>
@@ -1071,25 +1269,6 @@
   </div>
 </div>
 
-<div id="collectionsOverlay">
-  <div id="collectionsModal">
-    <div class="m-head">
-      <div>
-        <div class="m-eyebrow">Organisation</div>
-        <h2>Collections</h2>
-      </div>
-      <button class="m-close" id="collectionsClose" aria-label="Fermer">×</button>
-    </div>
-    <div class="wd-body">
-      <div class="hint">Affiche ou masque des groupes de projets sur la carte. Un projet peut appartenir à plusieurs collections à la fois (à assigner depuis sa fiche).</div>
-      <div class="wd-row">
-        <input id="newCollectionInput" type="text" placeholder="Nouvelle collection, ex. Voyage Pays-Bas 2026" />
-        <button class="wd-btn" id="newCollectionAdd" type="button">Créer</button>
-      </div>
-      <div id="collectionsList" class="collections-list"></div>
-    </div>
-  </div>
-</div>
 
 <div id="wdOverlay">
   <div id="wdModal">
@@ -1098,7 +1277,7 @@
         <div class="m-eyebrow">Import</div>
         <h2>Importer des bâtiments</h2>
       </div>
-      <button class="m-close" id="wdClose" aria-label="Fermer">×</button>
+      <button class="m-close" id="wdClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
     <div class="wd-tabs">
       <button class="wd-tab active" data-tab="architect">Par architecte</button>
@@ -1306,6 +1485,48 @@
   function updateFilterIndicator(){
     const active = !!(collectionFilter || typologyFilter || decadeFilter || statusFilter);
     document.getElementById('viewBtn').classList.toggle('has-active-filter', active);
+    renderFilterChips();
+  }
+
+  // Pastilles des filtres actifs : lisibles d'un coup d'œil, retirables d'un geste
+  function renderFilterChips(){
+    const el = document.getElementById('filterChips');
+    if(!el) return;
+    const summarize = (set, label)=>{
+      const vals = [...set].map(label);
+      if(!vals.length) return 'aucun';
+      return vals.length > 2 ? `${vals.slice(0,2).join(', ')} +${vals.length - 2}` : vals.join(', ');
+    };
+    const chips = [];
+    const q = (document.getElementById('search').value || '').trim();
+    if(q) chips.push({key: 'search', text: `« ${q} »`});
+    if(collectionFilter) chips.push({key: 'collections', text: 'Collections : ' + summarize(collectionFilter, id=> id === '__none__' ? 'sans collection' : ((collections.find(c=> c.id === id) || {}).name || '?'))});
+    if(typologyFilter) chips.push({key: 'typology', text: 'Typologie : ' + summarize(typologyFilter, t=> t === '__none__' ? 'non renseignée' : t)});
+    if(decadeFilter) chips.push({key: 'decade', text: 'Décennie : ' + summarize(decadeFilter, d=> d === '__none__' ? 'inconnue' : d)});
+    if(statusFilter) chips.push({key: 'status', text: 'Statut : ' + summarize(statusFilter, v=> v === 'visited' ? 'visité' : 'non visité')});
+    if(chips.length > 1) chips.push({key: 'all', text: 'Tout effacer', all: true});
+    el.innerHTML = chips.map(c=> `<button type="button" class="filter-chip${c.all ? ' chip-all' : ''}" data-key="${c.key}">
+      <span>${escapeHtml(c.text)}</span>${c.all ? '' : '<svg class="ico" aria-hidden="true"><use href="#i-close"/></svg>'}</button>`).join('');
+    el.querySelectorAll('.filter-chip').forEach(b=>{
+      const label = b.dataset.key === 'all' ? 'Effacer tous les filtres' : 'Retirer le filtre ' + b.textContent.trim();
+      b.setAttribute('aria-label', label);
+      b.onclick = ()=> clearFilter(b.dataset.key);
+    });
+  }
+
+  function clearFilter(key){
+    if(key === 'search' || key === 'all'){
+      const input = document.getElementById('search');
+      if(input.value){ input.value = ''; runSearch(''); }
+    }
+    if(key === 'collections' || key === 'all') collectionFilter = null;
+    if(key === 'typology' || key === 'all') typologyFilter = null;
+    if(key === 'decade' || key === 'all') decadeFilter = null;
+    if(key === 'status' || key === 'all') statusFilter = null;
+    renderFiltersPanel();
+    renderCollectionsPanel();
+    updateFilterIndicator();
+    rebuildMarkers();
   }
 
   function showToast(msg, ms=2400){
@@ -1364,20 +1585,12 @@
       const t = ptitle(p);
       if(t){ if(!ownByTitle.has(t)) ownByTitle.set(t, []); ownByTitle.get(t).push(p); }
     });
-    const keptWd = new Set();
-    const keptByTitle = new Map();
     return published.projects.filter(p=>{
       if(ownIds.has(p.id)) return false;
       if(tombstones.projects[p.id]) return false;           // supprimée ou fusionnée par le propriétaire depuis la publication
       if(p.wikidataId && ownWd.has(p.wikidataId)) return false;
       const same = ownByTitle.get(ptitle(p));
       if(same && same.some(o=> distM(o, p) <= DUP_RADIUS_M)) return false;
-      // Doublons à l'intérieur de la sélection publiée elle-même (publication faite avant une fusion)
-      if(wdIds(p).some(q=> keptWd.has(q))) return false;
-      const kept = keptByTitle.get(ptitle(p));
-      if(kept && kept.some(o=> sameBuilding(o, p))) return false;
-      wdIds(p).forEach(q=> keptWd.add(q));
-      if(ptitle(p)){ if(!keptByTitle.has(ptitle(p))) keptByTitle.set(ptitle(p), []); keptByTitle.get(ptitle(p)).push(p); }
       return true;
     });
   }
@@ -1387,6 +1600,7 @@
     markers = {};
     projects.forEach(p=> addMarkerToMap(p, false));
     publishedExtra().forEach(p=> addMarkerToMap(p, true));
+    if(isListOpen()) renderList();
   }
 
   // Allège les étiquettes du fond vectoriel :
@@ -1422,7 +1636,48 @@
       ml.setPaintProperty(id, 'text-halo-width', 1.4);
     }
 
+    // Contraste du fond : gradation fond < quartiers < parcs < bâtiments < rues < grands axes.
+    // Le style d'origine rendait les bâtiments plus sombres que le fond, donc invisibles.
+    const BG = '#111214';
+    const BASEMAP_PAINT = {
+      'background':               {'background-color': BG},
+      'landuse_residential':      {'fill-color': '#15161A'},
+      'landcover_wood':           {'fill-color': '#1A1D1C'},
+      'landuse_park':             {'fill-color': '#1A1D1C'},
+      'landcover_ice_shelf':      {'fill-color': BG},
+      'water':                    {'fill-color': '#1D2A37'},
+      'waterway':                 {'line-color': '#1D2A37'},
+      'building':                 {'fill-color': '#1F2126', 'fill-outline-color': '#34373E'},
+      'aeroway-area':             {'fill-color': '#16171B'},
+      'aeroway-runway':           {'line-color': '#2A2C31'},
+      'aeroway-taxiway':          {'line-color': '#24262B'},
+      'road_area_pier':           {'fill-color': BG},
+      'road_pier':                {'line-color': BG},
+      'highway_path':             {'line-color': '#2A2C31'},
+      'highway_minor':            {'line-color': '#2E3036'},
+      'highway_major_casing':     {'line-color': 'rgba(92,96,104,0.9)'},
+      'highway_major_inner':      {'line-color': '#3A3D44'},
+      'highway_major_subtle':     {'line-color': '#34373D'},
+      'highway_motorway_casing':  {'line-color': 'rgba(110,114,122,0.9)'},
+      'highway_motorway_subtle':  {'line-color': '#34373D'},
+      'railway':                  {'line-color': '#3E4047'},
+      'railway_transit':          {'line-color': '#3E4047'},
+      'railway_minor':            {'line-color': '#3E4047'},
+      'railway_dashline':         {'line-color': BG},
+      'railway_transit_dashline': {'line-color': BG},
+      'railway_minor_dashline':   {'line-color': BG},
+      'boundary_state':           {'line-color': '#45484F'},
+      'boundary_country_z0-4':    {'line-color': '#5A5D65'},
+      'boundary_country_z5-':     {'line-color': '#5A5D65'},
+    };
+    const applyColors = ()=>{
+      Object.entries(BASEMAP_PAINT).forEach(([id, paint])=>{
+        if(!ml.getLayer(id)) return; // couche absente d'une future version du style : ignorée
+        Object.entries(paint).forEach(([prop, val])=>{ try{ ml.setPaintProperty(id, prop, val); }catch(e){} });
+      });
+    };
     const apply = ()=>{
+      applyColors();
       const style = ml.getStyle();
       if(!style || !style.layers) return;
       const layers = style.layers;
@@ -1465,6 +1720,23 @@
   function initMap(){
     map = L.map('map', {zoomControl:false, worldCopyJump:true, minZoom:1, maxZoom:19}).setView([46.6, 2.4], 5);
     L.control.zoom({position:'bottomleft'}).addTo(map);
+    // « Autour de moi » : ajouté après le zoom, Leaflet l'empile au-dessus
+    if(navigator.geolocation){
+      const Locate = L.Control.extend({
+        options: {position: 'bottomleft'},
+        onAdd(){
+          const bar = L.DomUtil.create('div', 'leaflet-bar leaflet-control locate-control');
+          const a = L.DomUtil.create('a', 'locate-btn', bar);
+          a.href = '#'; a.setAttribute('role', 'button');
+          a.setAttribute('aria-label', 'Centrer la carte sur ma position'); a.title = 'Autour de moi';
+          a.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-locate"/></svg>';
+          L.DomEvent.disableClickPropagation(bar);
+          L.DomEvent.on(a, 'click', (e)=>{ L.DomEvent.preventDefault(e); locateMe(a); });
+          return bar;
+        }
+      });
+      map.addControl(new Locate());
+    }
     let vectorBasemapOk = false;
     try{
       if(typeof L.maplibreGL === 'function'){
@@ -1490,7 +1762,7 @@
           className:'', iconSize:[40,40]
         });
       },
-      maxClusterRadius:50, showCoverageOnHover:false
+      maxClusterRadius:50
     });
     map.addLayer(clusterGroup);
 
@@ -1519,7 +1791,7 @@
     document.getElementById('crosshairHint').classList.add('show');
     const btn = document.getElementById('addBtn');
     btn.classList.add('active');
-    btn.querySelector('.btn-icon').textContent = '×';
+    btn.querySelector('.btn-icon use').setAttribute('href', '#i-close');
     btn.querySelector('.btn-label').textContent = 'Annuler';
     btn.setAttribute('aria-label', "Annuler l'ajout d'un projet");
     map.getContainer().style.cursor = 'crosshair';
@@ -1529,7 +1801,7 @@
     document.getElementById('crosshairHint').classList.remove('show');
     const btn = document.getElementById('addBtn');
     btn.classList.remove('active');
-    btn.querySelector('.btn-icon').textContent = '+';
+    btn.querySelector('.btn-icon use').setAttribute('href', '#i-add');
     btn.querySelector('.btn-label').textContent = 'Ajouter un projet';
     btn.setAttribute('aria-label', 'Ajouter un projet');
     map.getContainer().style.cursor = '';
@@ -1728,7 +2000,7 @@
     if(!title){ autofillStatus.textContent = "Saisissez d'abord un nom de bâtiment."; return; }
     const btn = document.getElementById('autofillBtn');
     btn.disabled = true;
-    const originalLabel = btn.textContent;
+    const originalLabel = btn.innerHTML;
     btn.textContent = 'Recherche…';
     autofillStatus.textContent = 'Recherche sur Wikidata…';
     const refFilled = [];
@@ -1836,7 +2108,7 @@
       updateModalBanner();
       updateSourceLink();
       btn.disabled = false;
-      btn.textContent = originalLabel;
+      btn.innerHTML = originalLabel;
     }
   };
 
@@ -1851,9 +2123,9 @@
   }
 
   function openCreateModal(latlng){
-    setModalReadonly(false);
     document.getElementById('moveBtn').style.display = 'none';
     editingId = null;
+    document.getElementById('shareBtn').style.display = 'none';
     pendingWikidataId = null;
     autofillQid = null;
     clearForm();
@@ -1885,33 +2157,76 @@
     }
   }
 
-  // Fiche en lecture seule : sélection publiée consultée par un visiteur
-  function setModalReadonly(on){
-    document.getElementById('modal').classList.toggle('readonly', on);
-    document.querySelectorAll('#modal .m-body input, #modal .m-body textarea, #modal .m-body select')
-      .forEach(el=>{ el.disabled = on; });
-  }
 
   function openEditModal(id){
     const p = projects.find(x=>x.id===id);
     if(!p) return;
-    setModalReadonly(false);
     editingId = id;
     fillModal(p);
     document.getElementById('modalEyebrow').textContent = 'Modifier le relevé';
     document.getElementById('deleteBtn').style.display = 'inline';
+    currentShareId = p.id; writeHash();
+    document.getElementById('shareBtn').style.display = '';
     document.getElementById('moveBtn').style.display = syncConfig ? '' : 'none';
     modalOverlay.classList.add('show');
   }
 
-  function openPublishedItem(p){
-    editingId = null;
-    fillModal(p);
-    document.getElementById('modalEyebrow').textContent = 'Sélection publiée';
-    document.getElementById('moveBtn').style.display = 'none';
-    setModalReadonly(true);
-    modalOverlay.classList.add('show');
+  // ---- Fiche éditoriale : consultation d'un projet publié ----
+  const pvOverlay = document.getElementById('pubViewOverlay');
+  function isPubViewOpen(){ return pvOverlay.classList.contains('show'); }
+  function largeImg(u){ return /commons\.wikimedia\.org\/wiki\/Special:FilePath\//.test(u) && !/[?&]width=/.test(u) ? u + (u.includes('?') ? '&' : '?') + 'width=1280' : u; }
+  function mapsUrl(p){
+    const apple = /iPhone|iPad|Macintosh/.test(navigator.userAgent);
+    return apple ? `https://maps.apple.com/?q=${encodeURIComponent(p.title || '')}&ll=${p.lat},${p.lng}`
+                 : `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
   }
+  function openPublishedItem(p){
+    const imgs = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+    const kicker = [p.typology, p.city].filter(Boolean).join(' · ');
+    const byline = [p.architect, p.year].filter(Boolean).join(' — ');
+    const link = (href, text)=> `<a class="pv-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(text)}</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`;
+    const links = [];
+    if(p.source) links.push(link(p.source, /wikipedia\.org/.test(p.source) ? 'Wikipédia' : /wikidata\.org/.test(p.source) ? 'Wikidata' : 'Lire l\'article'));
+    if(p.wikidataId && !/wikidata\.org/.test(p.source || '')) links.push(link('https://www.wikidata.org/wiki/' + p.wikidataId, 'Wikidata'));
+    links.push(link('https://structurae.net/en/search?query=' + encodeURIComponent(p.title || ''), 'Structurae'));
+    const body = document.getElementById('pubViewBody');
+    body.innerHTML = `
+      ${imgs.length ? `<div class="pv-hero"><img id="pvHeroImg" src="${escapeHtml(largeImg(imgs[0]))}" alt="${escapeHtml(p.title || '')}" onerror="this.closest('.pv-hero').style.display='none'" /></div>` : ''}
+      ${imgs.length > 1 ? `<div class="pv-thumbs">${imgs.map((u,i)=> `<button type="button" class="pv-thumb${i===0?' active':''}" data-i="${i}" aria-label="Photo ${i+1}"><img src="${escapeHtml(thumbUrl(u))}" alt="" loading="lazy" onerror="this.parentElement.style.display='none'" /></button>`).join('')}</div>` : ''}
+      <div class="pv-text">
+        ${kicker ? `<div class="pv-kicker">${escapeHtml(kicker)}</div>` : ''}
+        <h1 class="pv-title" id="pvTitle">${escapeHtml(p.title || 'Sans titre')}</h1>
+        ${byline ? `<div class="pv-byline">${escapeHtml(byline)}</div>` : ''}
+        ${p.visited ? '<div class="pv-visited">Visité</div>' : ''}
+        ${p.address ? `<div class="pv-block"><div class="pv-label">Adresse</div><div class="pv-address">${escapeHtml(p.address)}</div><a class="pv-maps" href="${escapeHtml(mapsUrl(p))}" target="_blank" rel="noopener">Itinéraire ↦</a></div>`
+                    : `<div class="pv-block"><a class="pv-maps" href="${escapeHtml(mapsUrl(p))}" target="_blank" rel="noopener">Itinéraire ↦</a></div>`}
+        ${p.notes ? `<div class="pv-block"><p class="pv-notes">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p></div>` : ''}
+        ${(p.plans||[]).length ? `<div class="pv-block"><div class="pv-label">Plans et documents</div>${p.plans.map(pl=> link(pl.url, pl.label || 'Document')).join('')}</div>` : ''}
+        ${(p.comments||[]).length ? `<div class="pv-block"><div class="pv-label">Commentaires</div>${p.comments.map(c=> `<blockquote class="pv-comment">${escapeHtml(c.text)}<span>${escapeHtml(c.date || '')}</span></blockquote>`).join('')}</div>` : ''}
+        <div class="pv-block pv-links"><div class="pv-label">Pour aller plus loin</div>${links.join('')}</div>
+      </div>`;
+    body.querySelectorAll('.pv-thumb').forEach(t=>{
+      t.onclick = ()=>{
+        body.querySelectorAll('.pv-thumb').forEach(x=> x.classList.toggle('active', x === t));
+        const hero = document.getElementById('pvHeroImg');
+        hero.closest('.pv-hero').style.display = '';
+        hero.src = largeImg(imgs[Number(t.dataset.i)]);
+      };
+    });
+    body.scrollTop = 0;
+    currentShareId = p.id; writeHash();
+    pvOverlay.classList.add('show');
+    document.getElementById('pubViewClose').focus();
+  }
+  function closePubView(){
+    if(!isPubViewOpen()) return;
+    pvOverlay.classList.remove('show');
+    if(currentShareId){ currentShareId = null; writeHash(); }
+  }
+  document.getElementById('pubViewClose').onclick = closePubView;
+  pvOverlay.addEventListener('click', (e)=>{ if(e.target === pvOverlay) closePubView(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closePubView(); });
+  document.getElementById('pubViewShare').onclick = ()=> shareProject(document.getElementById('pvTitle') ? document.getElementById('pvTitle').textContent : 'Atlas');
 
   function fillModal(p){
     pendingWikidataId = null;
@@ -1940,7 +2255,7 @@
 
   function closeModal(){
     modalOverlay.classList.remove('show');
-    setModalReadonly(false);
+    if(currentShareId){ currentShareId = null; writeHash(); }
     pendingLatLng = null; editingId = null; pendingWikidataId = null;
   }
 
@@ -2044,6 +2359,7 @@
     searchClear.classList.toggle('show', searchInput.value.length > 0);
     searchQueryFilter = q;
     updateFilterIndicator();
+    writeHash();
     rebuildMarkers();
     scheduleReferenceRebuild();
     if(!q){ searchResults.classList.remove('show'); searchCount.textContent=''; return; }
@@ -2122,11 +2438,11 @@
       + collections.map(c=> `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('')
       + '<option value="__new__">+ Nouvelle collection…</option>';
     wdCollection.value = [...wdCollection.options].some(o=> o.value === prev) ? prev : '';
-    wdNewCollection.style.display = wdCollection.value === '__new__' ? '' : 'none';
+    setFieldVisible(wdNewCollection, wdCollection.value === '__new__');
   }
   wdCollection.addEventListener('change', ()=>{
     const isNew = wdCollection.value === '__new__';
-    wdNewCollection.style.display = isNew ? '' : 'none';
+    setFieldVisible(wdNewCollection, isNew);
     if(isNew) wdNewCollection.focus();
   });
 
@@ -2554,10 +2870,9 @@
 
   // ---- Menus (vue / données) ----
   const viewBtn = document.getElementById('viewBtn');
-  const viewMenu = document.getElementById('viewMenu');
   const dataBtn = document.getElementById('dataBtn');
   const dataMenu = document.getElementById('dataMenu');
-  const menuPairs = [[viewBtn, viewMenu], [dataBtn, dataMenu]];
+  const menuPairs = [[dataBtn, dataMenu]];
 
   function closeAllMenus(){
     menuPairs.forEach(([btn, menu])=>{
@@ -2586,17 +2901,18 @@
     if(e.key === 'Escape') closeAllMenus();
   });
 
-  document.getElementById('collectionsMenuBtn').onclick = ()=>{
-    closeAllMenus();
-    renderCollectionsPanel();
-    document.getElementById('collectionsOverlay').classList.add('show');
-  };
-  document.getElementById('collectionsClose').onclick = ()=>{
-    document.getElementById('collectionsOverlay').classList.remove('show');
-  };
-  document.getElementById('collectionsOverlay').addEventListener('click', (e)=>{
-    if(e.target.id==='collectionsOverlay') document.getElementById('collectionsOverlay').classList.remove('show');
-  });
+  // ---- Panneau Affichage : couches, filtres et collections réunis ----
+  const viewPanel = document.getElementById('viewPanel');
+  function isViewPanelOpen(){ return viewPanel.classList.contains('open'); }
+  function setViewPanel(open){
+    if(open){ closeAllMenus(); renderFiltersPanel(); renderCollectionsPanel(); if(isListOpen()) setListPanel(false); }
+    viewPanel.classList.toggle('open', open);
+    viewPanel.setAttribute('aria-hidden', String(!open));
+    viewBtn.setAttribute('aria-expanded', String(open));
+  }
+  viewBtn.onclick = (e)=>{ e.stopPropagation(); setViewPanel(!isViewPanelOpen()); };
+  document.getElementById('viewPanelClose').onclick = ()=> setViewPanel(false);
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && isViewPanelOpen()) setViewPanel(false); });
 
   function renderCollectionsPanel(){
     const el = document.getElementById('collectionsList');
@@ -2659,17 +2975,6 @@
   };
 
   // ---- Filters panel ----
-  document.getElementById('filtersMenuBtn').onclick = ()=>{
-    closeAllMenus();
-    renderFiltersPanel();
-    document.getElementById('filtersOverlay').classList.add('show');
-  };
-  document.getElementById('filtersClose').onclick = ()=>{
-    document.getElementById('filtersOverlay').classList.remove('show');
-  };
-  document.getElementById('filtersOverlay').addEventListener('click', (e)=>{
-    if(e.target.id==='filtersOverlay') document.getElementById('filtersOverlay').classList.remove('show');
-  });
 
   function renderFilterGroup(containerId, options, currentFilter, onChange){
     // options: [{id, label, count}]
@@ -2860,10 +3165,11 @@
   }
 
   function updateRefToggle(){
+    updateLegend();
     const btn = document.getElementById('refToggleBtn');
     const label = document.getElementById('refToggleLabel');
     btn.setAttribute('aria-checked', String(refVisible));
-    btn.querySelector('span[aria-hidden]').textContent = refVisible ? '●' : '◌';
+    btn.classList.toggle('on', refVisible);
     label.textContent = `Base de référence : ${refVisible ? 'affichée' : 'masquée'} (${refRows.length.toLocaleString('fr-FR')})`;
     btn.title = refBuiltAt ? `Mise à jour du ${refBuiltAt}` : '';
   }
@@ -2930,6 +3236,10 @@
   async function loadReference(){
     const btn = document.getElementById('refToggleBtn');
     const label = document.getElementById('refToggleLabel');
+    const note = document.getElementById('loadingNote');
+    let wanted = false;
+    try{ wanted = localStorage.getItem(REF_VISIBLE_KEY) === '1'; }catch(e){}
+    if(wanted) note.classList.add('show'); // la couche était affichée : on prévient que la carte se complète
     try{
       const data = await fetchJson('data/reference.json', {cache: 'no-cache'}, 25000);
       if(!data || !Array.isArray(data.rows)) throw new Error('format');
@@ -2944,6 +3254,8 @@
       // Fichier absent (premier déploiement, ouverture en local…) : l'app fonctionne comme avant,
       // la recherche d'import repasse par Wikidata en direct.
       label.textContent = 'Base de référence (indisponible)';
+    }finally{
+      note.classList.remove('show');
     }
   }
 
@@ -3130,6 +3442,187 @@
     if(!groups.length) showToast('Aucun doublon trouvé.');
   };
 
+  // ---- Bouton d'effacement dans les champs de saisie d'une ligne ----
+  // Le bouton suit l'état :placeholder-shown : il apparaît aussi quand le champ est rempli par le code.
+  function makeClearable(input){
+    if(input.closest('.clearable')) return;
+    const cs = getComputedStyle(input);
+    const wrap = document.createElement('span');
+    wrap.className = 'clearable';
+    // La boîte englobante reprend la place du champ dans sa rangée (largeur, étirement, visibilité)
+    if(cs.flexGrow || cs.flexBasis) wrap.style.flex = `${cs.flexGrow || 0} ${cs.flexShrink || 1} ${cs.flexBasis || 'auto'}`;
+    ['maxWidth','flex'].forEach(k=>{ if(input.style[k]){ wrap.style[k] = input.style[k]; input.style[k] = ''; } });
+    if(input.style.display === 'none'){ wrap.style.display = 'none'; input.style.display = ''; }
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    if(!input.hasAttribute('placeholder')) input.setAttribute('placeholder', ' ');
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'clear-btn'; btn.tabIndex = -1;
+    btn.setAttribute('aria-label', 'Effacer le champ');
+    btn.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-close"/></svg>';
+    btn.addEventListener('mousedown', (e)=> e.preventDefault()); // garde le curseur dans le champ
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      input.value = '';
+      input.dispatchEvent(new Event('input', {bubbles: true})); // bannière photo, lien « Ouvrir », recherches…
+      input.focus();
+    });
+    wrap.appendChild(btn);
+  }
+  document.querySelectorAll('input').forEach(el=>{
+    const t = (el.getAttribute('type') || 'text').toLowerCase();
+    if(['text','password','search','url'].includes(t) && el.id !== 'search') makeClearable(el); // la recherche a déjà le sien
+  });
+  // Afficher / masquer un champ enveloppé (c'est l'enveloppe qui occupe la place)
+  function setFieldVisible(input, show){ (input.closest('.clearable') || input).style.display = show ? '' : 'none'; }
+
+  // ---- Autour de moi ----
+  let meLayer = null;
+  function locateMe(btn){
+    if(btn.classList.contains('locating')) return;
+    btn.classList.add('locating');
+    navigator.geolocation.getCurrentPosition((pos)=>{
+      btn.classList.remove('locating');
+      const ll = [pos.coords.latitude, pos.coords.longitude];
+      const acc = Math.min(pos.coords.accuracy || 0, 2000);
+      if(meLayer) map.removeLayer(meLayer);
+      meLayer = L.layerGroup([
+        L.circle(ll, {radius: acc, color: '#E1332B', weight: 1, opacity: 0.5, fillColor: '#E1332B', fillOpacity: 0.08, interactive: false}),
+        L.circleMarker(ll, {radius: 7, color: '#FAFAF8', weight: 2.5, fillColor: '#E1332B', fillOpacity: 1, interactive: false}),
+      ]).addTo(map);
+      map.setView(ll, Math.max(map.getZoom(), 15));
+    }, (err)=>{
+      btn.classList.remove('locating');
+      const msg = err && err.code === 1 ? 'Accès à ta position refusé : autorise-le dans les réglages du navigateur pour ce site.'
+                : err && err.code === 3 ? 'Position introuvable à temps : réessaie, de préférence à l\'extérieur.'
+                : 'Position indisponible pour le moment.';
+      showToast(msg, 5000);
+    }, {enableHighAccuracy: true, timeout: 12000, maximumAge: 60000});
+  }
+
+  // ---- Vue liste : mêmes projets que la carte (recherche et filtres compris), triables ----
+  const listPanel = document.getElementById('listPanel');
+  const listBtn = document.getElementById('listBtn');
+  const LIST_PAGE = 200;
+  let listShown = LIST_PAGE;
+  function isListOpen(){ return listPanel.classList.contains('open'); }
+  function setListPanel(open){
+    if(open){
+      if(typeof isViewPanelOpen === 'function' && isViewPanelOpen()) setViewPanel(false); // un seul panneau à la fois
+      listShown = LIST_PAGE;
+      renderList();
+    }
+    listPanel.classList.toggle('open', open);
+    listPanel.setAttribute('aria-hidden', String(!open));
+    listBtn.setAttribute('aria-expanded', String(open));
+  }
+  listBtn.onclick = (e)=>{ e.stopPropagation(); setListPanel(!isListOpen()); };
+  document.getElementById('listPanelClose').onclick = ()=> setListPanel(false);
+  document.getElementById('listSort').onchange = ()=>{ listShown = LIST_PAGE; renderList(); };
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && isListOpen() && !modalOverlay.classList.contains('show')) setListPanel(false); });
+
+  // Miniature : les images Commons sont demandées en petite taille
+  function thumbUrl(u){
+    if(!u) return '';
+    return /commons\.wikimedia\.org\/wiki\/Special:FilePath\//.test(u) && !/[?&]width=/.test(u) ? u + (u.includes('?') ? '&' : '?') + 'width=160' : u;
+  }
+  function yearNum(p){ const m = String(p.year||'').match(/\d{4}/); return m ? Number(m[0]) : null; }
+
+  function renderList(){
+    const own = projects.map(p=> ({p, pub: false}));
+    const extra = publishedExtra().map(p=> ({p, pub: true}));
+    const items = own.concat(extra).filter(x=> isProjectVisible(x.p) && !x.p.seed);
+    const sort = document.getElementById('listSort').value;
+    const coll = new Intl.Collator('fr', {sensitivity: 'base'});
+    const byText = (k)=> (a,b)=> { const va = a.p[k]||'', vb = b.p[k]||''; if(!va !== !vb) return va ? -1 : 1; return coll.compare(va, vb) || coll.compare(a.p.title||'', b.p.title||''); };
+    const byYear = (dir)=> (a,b)=> { const ya = yearNum(a.p), yb = yearNum(b.p); if((ya===null) !== (yb===null)) return ya===null ? 1 : -1; return (dir*(ya - yb)) || coll.compare(a.p.title||'', b.p.title||''); };
+    items.sort({title: byText('title'), architect: byText('architect'), city: byText('city'), yearDesc: byYear(-1), yearAsc: byYear(1)}[sort] || byText('title'));
+    document.getElementById('listCount').textContent = `${items.length} projet${items.length > 1 ? 's' : ''}`;
+    const body = document.getElementById('listBody');
+    if(!items.length){
+      body.innerHTML = '<div class="lp-empty">Aucun projet ne correspond à la recherche et aux filtres en cours.</div>';
+      return;
+    }
+    const shown = items.slice(0, listShown);
+    body.innerHTML = shown.map((x, i)=>{
+      const p = x.p;
+      const meta = [p.architect, p.year, p.city].filter(Boolean).join(' · ');
+      const img = p.image ? `<img class="lp-thumb" src="${escapeHtml(thumbUrl(p.image))}" alt="" loading="lazy" onerror="this.style.visibility='hidden'" />` : '<span class="lp-thumb"></span>';
+      return `<button type="button" class="lp-item" data-i="${i}">${img}<span class="lp-text"><span class="lp-title" style="display:block;">${escapeHtml(p.title || 'Sans titre')}</span><span class="lp-meta" style="display:block;">${escapeHtml(meta || '—')}</span></span>${p.visited ? '<span class="lp-visited">Visité</span>' : ''}</button>`;
+    }).join('') + (items.length > listShown ? `<button type="button" class="wd-btn lp-more" id="listMore">Afficher plus (${items.length - listShown} restant${items.length - listShown > 1 ? 's' : ''})</button>` : '');
+    body.querySelectorAll('.lp-item').forEach(btn=>{
+      btn.onclick = ()=>{
+        const x = shown[Number(btn.dataset.i)];
+        if(window.innerWidth <= 600) setListPanel(false); // sur iPhone, la feuille cacherait la carte
+        map.setView([x.p.lat, x.p.lng], Math.max(map.getZoom(), 16));
+        if(x.pub) openPublishedItem(x.p); else openEditModal(x.p.id);
+      };
+    });
+    const more = document.getElementById('listMore');
+    if(more) more.onclick = ()=>{ listShown += LIST_PAGE; renderList(); };
+  }
+
+  // ---- Liens partageables : #projet=<identifiant> et #q=<recherche> ----
+  let currentShareId = null;
+  function readHash(){
+    const h = new URLSearchParams(location.hash.slice(1));
+    return {projet: h.get('projet'), q: h.get('q')};
+  }
+  // Met l'adresse à jour sans créer d'entrée dans l'historique (le bouton Retour reste utile)
+  function writeHash(){
+    const parts = [];
+    if(currentShareId) parts.push('projet=' + encodeURIComponent(currentShareId));
+    const q = (document.getElementById('search').value || '').trim();
+    if(q) parts.push('q=' + encodeURIComponent(q));
+    try{ history.replaceState(null, '', location.pathname + location.search + (parts.length ? '#' + parts.join('&') : '')); }catch(e){}
+  }
+  function handleHash(){
+    const {projet, q} = readHash();
+    const search = document.getElementById('search');
+    if(q && search.value !== q){ search.value = q; runSearch(q); }
+    if(!projet || ((modalOverlay.classList.contains('show') || isPubViewOpen()) && currentShareId === projet)) return;
+    const own = projects.find(p=> p.id === projet);
+    const pub = !own && published && Array.isArray(published.projects) ? published.projects.find(p=> p.id === projet) : null;
+    const target = own || pub;
+    if(!target) return; // peut-être dans la sélection publiée, pas encore chargée : rejoué à son arrivée
+    map.setView([target.lat, target.lng], Math.max(map.getZoom(), 16));
+    if(own) openEditModal(own.id); else openPublishedItem(pub);
+  }
+  window.addEventListener('hashchange', handleHash);
+
+  document.getElementById('shareBtn').onclick = ()=> shareProject(fTitle.value || 'Atlas');
+  async function shareProject(title){
+    if(!currentShareId) return;
+    const url = location.origin + location.pathname + '#projet=' + encodeURIComponent(currentShareId);
+    const isPublic = !!(published && Array.isArray(published.projects) && published.projects.some(p=> p.id === currentShareId));
+    const note = isPublic ? '' : ' Ce projet n\'est pas publié : le lien ne s\'ouvrira que sur tes appareils.';
+    if(navigator.share){
+      try{ await navigator.share({title, url}); if(note) showToast(note.trim(), 5000); return; }
+      catch(e){ if(e && e.name === 'AbortError') return; } // partage annulé par l'utilisateur
+    }
+    try{ await navigator.clipboard.writeText(url); showToast('Lien copié.' + note, note ? 5000 : 2400); }
+    catch(e){ window.prompt('Copie ce lien :', url); }
+  }
+
+
+  // ---- Légende ----
+  const LEGEND_KEY = 'wa-atlas-legend-open';
+  const legendEl = document.getElementById('legend');
+  const legendToggle = document.getElementById('legendToggle');
+  function setLegendOpen(open, remember){
+    legendEl.classList.toggle('collapsed', !open);
+    legendToggle.setAttribute('aria-expanded', String(open));
+    if(remember){ try{ localStorage.setItem(LEGEND_KEY, open ? '1' : '0'); }catch(e){} }
+  }
+  (function initLegend(){
+    let saved = null;
+    try{ saved = localStorage.getItem(LEGEND_KEY); }catch(e){}
+    setLegendOpen(saved === null ? window.innerWidth > 900 : saved === '1', false);
+  })();
+  legendToggle.onclick = ()=> setLegendOpen(legendEl.classList.contains('collapsed'), true);
+  // Entrées de la base de référence : seulement quand la couche est affichée
+  function updateLegend(){ legendEl.classList.toggle('show-ref', !!(refRows && refVisible)); }
+
   // ---- Déplacement d'une épingle : mode explicite, validé ou annulé ----
   const moveBar = document.getElementById('moveBar');
   function startMove(id){
@@ -3186,6 +3679,9 @@
         const pts = data.projects.map(p=> [p.lat, p.lng]);
         if(pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.4));
       }
+      // Recherche saisie (ou ouverte par un lien) pendant le chargement : résultats mis à jour
+      const sv = document.getElementById('search').value;
+      if(sv) runSearch(sv);
     }catch(e){ /* pas de sélection publiée : rien à afficher de plus */ }
   }
 
@@ -3302,7 +3798,7 @@
     if(changed){
       rebuildMarkers();
       rebuildReferenceLayer();
-      if(document.getElementById('collectionsOverlay').classList.contains('show')) renderCollectionsPanel();
+      if(isViewPanelOpen()){ renderCollectionsPanel(); renderFiltersPanel(); }
     }
     return changed;
   }
@@ -3538,7 +4034,8 @@
         map.fitBounds(bounds.pad(0.4));
       }
       loadReference(); // sans await : la carte personnelle s'affiche sans attendre la référence
-      loadPublished();
+      handleHash();
+      loadPublished().then(handleHash);
       if(syncConfig) performSync(false);
     }catch(err){
       document.getElementById('map').innerHTML =

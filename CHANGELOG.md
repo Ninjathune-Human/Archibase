@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.11.0
+### Ajouté
+- Fiche éditoriale pour la consultation des projets publiés : grande photo et galerie, titre, architecte et année, adresse avec itinéraire, notes, plans, commentaires publiés et liens (article, Wikidata, Structurae). Remplace le formulaire en lecture seule.
+- Panneau latéral « Affichage » réunissant couches, filtres et collections (feuille par le bas sur iPhone), à la place d'un menu et de deux fenêtres.
+- Pastilles des filtres actifs sous la barre de recherche, retirables une à une ou toutes ensemble.
+- Liens partageables : `#projet=…` ouvre directement une fiche, `#q=…` une recherche ; bouton Partager dans la fiche (feuille de partage native sur iPhone et iPad).
+- Vue liste des projets, triable (nom, architecte, année, ville), liée à la recherche et aux filtres, paginée par 200.
+- « Autour de moi » : centrage sur la position de l'appareil, avec cercle de précision.
+- Légende repliable de la carte ; bouton d'effacement dans les champs de saisie ; jeu d'icônes dessinées.
+
+### Changé
+- Nouveau logo (tracés régulateurs au nombre d'or) et signature en capitales espacées.
+- Fond de carte recoloré : bâtiments, rues, eau et voies ferrées nettement plus lisibles.
+- Une seule famille de polices (IBM Plex) ; mention de chargement de la base de référence.
+- Épingles figées par défaut, déplacement via la fiche avec validation.
+- Import sans doublon (identifiant Wikidata ou nom à moins de 150 m) ; fusion des doublons et vérification des épingles superposées.
+
 ## 1.10.0
 ### Ajouté
 - Publication : bouton « Publier sur Archibase » qui fige l'état du relevé (tout, ou une collection) dans `data/published.json` du dépôt public ; notes et commentaires exclus par défaut.
