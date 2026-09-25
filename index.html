@@ -1524,7 +1524,9 @@
 
     // Seuils (zoom MapLibre, décalé de -1 par rapport au zoom Leaflet affiché) :
     const CITY_MINZOOM = 5;    // villes non capitales
-    const TOWN_MINZOOM = 7;    // villes moyennes, villages
+    const TOWN_MINZOOM = 7;    // repli pour une couche de lieux non prévue ci-dessous
+    // Seuils par importance (zoom MapLibre = zoom Leaflet − 1)
+    const PLACE_MINZOOM = {'place_town': 8, 'place_village': 10, 'place_suburb': 12, 'place_other': 14};
     const STATE_MINZOOM = 5;   // régions, provinces
 
     // Ajoute une condition à un filtre existant, en respectant sa syntaxe (expression ou ancienne syntaxe)
@@ -1566,12 +1568,13 @@
       'aeroway-taxiway':          {'line-color': '#24262B'},
       'road_area_pier':           {'fill-color': BG},
       'road_pier':                {'line-color': BG},
-      'highway_path':             {'line-color': '#2A2C31'},
-      'highway_minor':            {'line-color': '#2E3036'},
-      'highway_major_casing':     {'line-color': 'rgba(92,96,104,0.9)'},
+      'highway_path':             {'line-color': '#222428'},
+      'highway_minor':            {'line-color': '#27292E'},
+      'highway_major_casing':     {'line-color': 'rgba(0,0,0,0)'},   /* un seul trait : pas de bordure */
       'highway_major_inner':      {'line-color': '#3A3D44'},
       'highway_major_subtle':     {'line-color': '#34373D'},
-      'highway_motorway_casing':  {'line-color': 'rgba(110,114,122,0.9)'},
+      'highway_motorway_casing':  {'line-color': 'rgba(0,0,0,0)'},
+      'highway_motorway_inner':   {'line-color': '#4A4E57'},        /* le style d'origine les dessinait en noir */
       'highway_motorway_subtle':  {'line-color': '#34373D'},
       'railway':                  {'line-color': '#3E4047'},
       'railway_transit':          {'line-color': '#3E4047'},
@@ -1588,7 +1591,7 @@
       'highway_motorway_subtle': 7, 'highway_motorway_casing': 7, 'highway_motorway_inner': 7,
       'highway_major_subtle': 7, 'highway_major_casing': 11, 'highway_major_inner': 11,
       'highway_minor': 10, 'highway_path': 13,
-      'highway_name_motorway': 9, 'highway_name_other': 12,
+      'highway_name_motorway': 9, 'highway_name_other': 13,
       'boundary_state': 6,
     };
     const applyColors = ()=>{
@@ -1641,7 +1644,7 @@
             ml.setLayerZoomRange(l.id, Math.max(CITY_MINZOOM, l.minzoom || 0), l.maxzoom || 24);
             styleLabels(l.id);
           }else{
-            ml.setLayerZoomRange(l.id, Math.max(TOWN_MINZOOM, l.minzoom || 0), l.maxzoom || 24);
+            ml.setLayerZoomRange(l.id, Math.max(PLACE_MINZOOM[l.id] || TOWN_MINZOOM, l.minzoom || 0), l.maxzoom || 24);
             styleLabels(l.id);
           }
         }catch(e){ /* couche non modifiable : on l'ignore */ }

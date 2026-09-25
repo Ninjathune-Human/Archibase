@@ -6,6 +6,7 @@
 - Filtres : statut en tête, date de réalisation repliable avec résumé.
 - Carte : plus de polygone au survol des groupes ; animations de regroupement rétablies (la règle de mouvement réduit ne vise plus que les effets décoratifs).
 - Carte : routes masquées aux petites échelles (autoroutes à l'échelle régionale, rues à l'échelle de la ville), limites maritimes retirées, limites régionales à partir de l'échelle d'un pays ; Groenland et Antarctique dans la même teinte que les autres terres.
+- Carte, lisibilité à toutes les échelles : noms de lieux hiérarchisés (villes moyennes, villages, quartiers, hameaux à des seuils distincts) ; routes en un seul trait, hiérarchisées par la luminosité (autoroutes, grands axes, rues, chemins) ; autoroutes plus en noir.
 
 ## 1.11.0
 ### Ajouté
