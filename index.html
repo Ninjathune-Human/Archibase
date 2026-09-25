@@ -55,8 +55,13 @@
     outline-offset:2px;
     border-radius:var(--radius-xs);
   }
+  /* Mouvement réduit : seuls les effets décoratifs de l'interface sont coupés.
+     La carte et le regroupement des épingles gardent leurs animations, qui aident à se repérer. */
   @media (prefers-reduced-motion: reduce){
-    *{transition-duration:0.001ms !important; animation-duration:0.001ms !important;}
+    #sidePanel, #map, #topbar, #legend, .lg-chevron, .fs-chevron, #addBtn, .btn-primary, .locate-btn .ico, .ln-dot, .pv-link{
+      transition:none !important; animation:none !important;
+    }
+    #addBtn:hover, .btn-primary:hover{transform:none !important;}
   }
   #map{
     position:absolute; inset:0;
@@ -158,35 +163,17 @@
   }
   #addBtn:hover{background:rgba(225,51,43,0.12); transform:translateY(-1px);}
   #addBtn.active{background:var(--danger); border-color:var(--danger); color:var(--paper);}
-  #wdBtn{
-    min-height:44px;
-    padding:0 20px;
-    background:var(--copper);
-    color:var(--ink);
-    border:none; border-radius:var(--radius-full);
-    font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:13px;
-    letter-spacing:0.03em;
-    cursor:pointer;
-    pointer-events:auto;
-    display:flex; align-items:center; gap:8px;
-    box-shadow:var(--shadow-sm);
-    transition:background var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
-  }
-  #wdBtn:hover{background:var(--copper-bright); transform:translateY(-1px);}
   /* Jeu d'icônes : trait fin, angles francs, extrémités carrées (même dessin que le logo) */
   .ico{width:18px; height:18px; display:block; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:square; stroke-linejoin:miter;}
   .btn-icon{display:flex; align-items:center;}
-  #dataMenu .ico{width:16px; height:16px; color:var(--text-dim);}
-  #dataMenu button:hover .ico{color:var(--paper);}
   #refToggleBtn.on .ico{color:var(--copper);}
   .m-close .ico{width:18px; height:18px;}
   .ico-inline{display:inline-block; width:14px; height:14px; vertical-align:-2px;}
   #autofillBtn{display:inline-flex; align-items:center; gap:8px;}
   #autofillBtn .ico{width:15px; height:15px;}
 
-  .more-wrap{position:relative; pointer-events:auto;}
-  #viewBtn, #listBtn{position:relative; pointer-events:auto;} /* hors de .more-wrap : point d'indication et clics */
-  #viewBtn, #dataBtn, #listBtn{
+  #panelBtn{position:relative; pointer-events:auto;} /* point d'indication et clics */
+  #panelBtn{
     min-height:44px; min-width:44px; padding:0 14px;
     background:var(--ink-2);
     background:color-mix(in srgb, var(--ink-2) 88%, transparent); color:var(--blueprint);
@@ -194,22 +181,8 @@
     cursor:pointer; display:flex; align-items:center; justify-content:center;
     transition:background var(--duration-fast) var(--ease-standard);
   }
-  #viewBtn:hover, #dataBtn:hover, #listBtn:hover{background:var(--grid);}
-  #dataMenu{
-    display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:1100;
-    background:var(--ink-2);
-    background:color-mix(in srgb, var(--ink) 94%, transparent); border:1px solid var(--grid); border-radius:var(--radius-md);
-    min-width:240px; overflow:hidden; box-shadow:var(--shadow-md);
-  }
-  #dataMenu.show{display:block;}
-  #dataMenu button{
-    display:flex; align-items:center; gap:10px; width:100%; min-height:44px;
-    padding:0 14px; background:none; border:none; text-align:left; cursor:pointer;
-    font-family:'IBM Plex Sans'; font-size:13px; color:var(--paper);
-    border-bottom:1px solid var(--grid);
-  }
-  #dataMenu button:last-of-type{border-bottom:none;}
-  #dataMenu button:hover{background:rgba(255,255,255,0.08);}
+  #panelBtn:hover{background:var(--grid);}
+  #panelBtn[aria-expanded="true"]{border-color:var(--copper); color:var(--paper);}
 
   /* Compact topbar: stack search on its own row, buttons become icon-only 44x44.
      900px covers iPad portrait (~768-834px), not just phones. */
@@ -217,7 +190,7 @@
     #brand .subtitle{display:none;}
     #brand{padding:8px 12px;}
     #searchwrap{order:3; flex-basis:100%; max-width:none; min-width:0;}
-    #wdBtn, #addBtn{
+    #addBtn{
       width:44px; padding:0; justify-content:center; gap:0;
     }
     .btn-label{
@@ -612,19 +585,62 @@
   #legend.show-ref .lg-ref{display:flex !important;}
   .lg-hint{font-family:'IBM Plex Mono', monospace; font-size:10px; color:var(--text-dim); padding-top:2px; border-top:1px solid var(--grid); margin-top:2px; padding-top:8px;}
 
-  /* Panneau Liste : glisse depuis la gauche ; feuille par le bas sur iPhone */
-  #listPanel{
-    position:fixed; top:0; left:0; bottom:0; width:min(400px, 100vw); z-index:1500;
-    display:flex; flex-direction:column;
-    background:var(--paper); color:var(--text-on-paper); box-shadow:var(--shadow-lg);
-    padding-top:env(safe-area-inset-top, 0px);
-    transform:translateX(-105%); visibility:hidden;
+  /* Volet unique : partage l'écran avec la carte (à droite ; en bas sur iPhone) */
+  :root{--panel-w:380px; --sheet-h:50vh;}
+  #sidePanel{
+    position:fixed; top:0; right:0; bottom:0; width:var(--panel-w); z-index:1500;
+    display:flex; flex-direction:column; background:var(--paper); color:var(--text-on-paper);
+    border-left:1px solid var(--paper-dim); padding-top:env(safe-area-inset-top, 0px);
+    transform:translateX(100%); visibility:hidden;
     transition:transform var(--duration-medium) var(--ease-standard), visibility 0s linear var(--duration-medium);
   }
-  #listPanel.open{transform:none; visibility:visible; transition:transform var(--duration-medium) var(--ease-standard), visibility 0s;}
-  #listPanel .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
-  #listPanel .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
-  #listPanel .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
+  body.panel-open #sidePanel{transform:none; visibility:visible; transition:transform var(--duration-medium) var(--ease-standard), visibility 0s;}
+  .sp-head{display:flex; align-items:center; gap:4px; padding:12px 10px 12px 16px; border-bottom:2px solid var(--copper); flex-shrink:0;}
+  .sp-seg{flex:1; display:flex; padding:3px; background:var(--paper-dim); border-radius:var(--radius-sm); margin-right:6px;}
+  .sp-seg button{
+    flex:1; min-height:34px; border:none; background:none; border-radius:calc(var(--radius-sm) - 2px); cursor:pointer;
+    font-family:'IBM Plex Sans', sans-serif; font-size:12px; color:#5A5A5A; padding:0 2px; white-space:nowrap;
+    transition:background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  }
+  .sp-seg button.active{background:#fff; color:var(--text-on-paper); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,0.12);}
+  .sp-pin .ico{color:#8E8E8A; transform:rotate(45deg); transition:transform var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);}
+  .sp-pin.on .ico{color:var(--copper); transform:none;}
+  .sp-pane{display:none; flex:1; min-height:0; flex-direction:column;}
+  .sp-pane.open{display:flex;}
+  /* Onglet Projets : filtres et collections repliables, puis la liste ; tout défile d'un tenant */
+  #listPanel .pj-scroll{flex:1; min-height:0; overflow-y:auto; padding-bottom:calc(20px + env(safe-area-inset-bottom, 0px));}
+  #listPanel .lp-body{flex:none; overflow:visible;}
+  .pj-sec{padding:0 20px; border-bottom:1px solid var(--paper-dim);}
+  .pj-toggle{width:100%; min-height:50px; display:flex; align-items:center; gap:8px; padding:0; background:none; border:none; cursor:pointer; text-align:left; color:var(--text-on-paper);}
+  .pj-toggle .vp-title{margin:0;}
+  .pj-body{padding-bottom:16px;}
+  .pj-layer{padding:14px 20px;}
+  .pj-listhead{position:sticky; top:0; z-index:2; background:var(--paper); box-shadow:0 1px 0 var(--paper-dim);}
+  .sp-count{padding:12px 20px 0; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E;}
+  .sp-resize{position:absolute; top:0; bottom:0; left:-5px; width:10px; cursor:col-resize; z-index:2; touch-action:none;}
+  .sp-resize::after{content:''; position:absolute; top:50%; left:4px; width:2px; height:36px; margin-top:-18px; border-radius:1px; background:var(--paper-dim); transition:background var(--duration-fast) var(--ease-standard);}
+  .sp-resize:hover::after, .sp-resize.dragging::after{background:var(--copper);}
+  .sp-grab{display:none;}
+  @media (min-width: 601px){
+    #map, #topbar, #legend{transition:right var(--duration-medium) var(--ease-standard);}
+    body.panel-open #map{right:var(--panel-w);}
+    body.panel-open #topbar{right:calc(var(--panel-w) + 16px);}
+    body.panel-open #legend{right:calc(var(--panel-w) + 12px);}
+    body.panel-open #moveBar, body.panel-open #loadingNote, body.panel-open #crosshairHint, body.panel-open #toast{left:calc((100% - var(--panel-w)) / 2);}
+    body.resizing #map, body.resizing #topbar, body.resizing #legend, body.resizing #sidePanel{transition:none;}
+  }
+  @media (max-width: 600px){
+    #sidePanel{top:auto; left:0; width:100%; height:var(--sheet-h); border-left:none; border-top:1px solid var(--paper-dim); border-radius:var(--radius-lg) var(--radius-lg) 0 0; padding-top:0; transform:translateY(100%);}
+    .sp-resize{display:none;}
+    .sp-grab{display:flex; justify-content:center; padding:8px 0 2px; cursor:row-resize; touch-action:none; flex-shrink:0;}
+    .sp-grab span{width:36px; height:5px; border-radius:3px; background:var(--paper-dim);}
+    #map{transition:bottom var(--duration-medium) var(--ease-standard);}
+    body.panel-open #map{bottom:var(--sheet-h);}
+    body.panel-open #legend{bottom:calc(var(--sheet-h) + 12px);}
+    body.panel-open #loadingNote{bottom:calc(var(--sheet-h) + 12px);}
+    body.resizing #map, body.resizing #sidePanel{transition:none;}
+  }
+
   .lp-sort{display:flex; align-items:center; gap:10px; padding:10px 20px; border-bottom:1px solid var(--paper-dim); flex-shrink:0;}
   .lp-sort label{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:#6E6E6E; white-space:nowrap;}
   .lp-sort select{flex:1; min-height:40px; padding:0 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm); background:#fff; font-family:'IBM Plex Sans'; font-size:13px; color:var(--text-on-paper);}
@@ -642,27 +658,7 @@
   .lp-visited{flex-shrink:0; font-family:'IBM Plex Mono'; font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--copper);}
   .lp-more{width:100%; margin-top:12px;}
   .lp-empty{padding:30px 10px; text-align:center; font-size:13px; color:#6E6E6E;}
-  @media (max-width: 600px){
-    #listPanel{top:auto; right:0; width:100%; height:85vh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; transform:translateY(105%); padding-top:0;}
-    #listPanel.open{transform:none;}
-  }
 
-  /* Panneau Affichage : glisse depuis la droite ; feuille par le bas sur iPhone */
-  #viewPanel{
-    position:fixed; top:0; right:0; bottom:0; width:min(380px, 100vw); z-index:1500;
-    display:flex; flex-direction:column;
-    background:var(--paper); color:var(--text-on-paper); box-shadow:var(--shadow-lg);
-    padding-top:env(safe-area-inset-top, 0px);
-    transform:translateX(105%); visibility:hidden;
-    transition:transform var(--duration-medium) var(--ease-standard), visibility 0s linear var(--duration-medium);
-  }
-  #viewPanel.open{transform:none; visibility:visible; transition:transform var(--duration-medium) var(--ease-standard), visibility 0s;}
-  #viewPanel .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
-  #viewPanel .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
-  #viewPanel .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
-  .vp-body{flex:1; overflow-y:auto; padding:6px 20px calc(24px + env(safe-area-inset-bottom, 0px));}
-  .vp-section{padding:16px 0; border-bottom:1px solid var(--paper-dim);}
-  .vp-section:last-child{border-bottom:none;}
   .vp-title{font-family:'IBM Plex Sans', sans-serif; font-size:14px; font-weight:600; margin:0 0 10px;}
   #refToggleBtn{
     width:100%; min-height:44px; display:flex; align-items:center; gap:10px; padding:0 12px;
@@ -672,47 +668,29 @@
   #refToggleBtn .ico{width:16px; height:16px; color:#6E6E6E;}
   #refToggleBtn.on{border-color:var(--copper);}
   #refToggleBtn:disabled{opacity:0.5; cursor:default;}
-  @media (max-width: 600px){
-    #viewPanel{top:auto; left:0; width:100%; height:80vh; border-radius:var(--radius-lg) var(--radius-lg) 0 0; transform:translateY(105%); padding-top:0;}
-    #viewPanel.open{transform:none;}
-  }
 
   .filter-bulk{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
   .filter-section{margin-top:18px;}
   .filter-section:first-of-type{margin-top:12px;}
+  /* Section repliable (date de réalisation) */
+  .fs-toggle{width:100%; min-height:44px; display:flex; align-items:center; gap:8px; padding:0; background:none; border:none; cursor:pointer; text-align:left;}
+  .fs-toggle .filter-section-title{margin:0;}
+  .fs-summary{margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:10px; color:#6E6E6E;}
+  .fs-chevron{width:16px; height:16px; color:#6E6E6E; transform:rotate(180deg); transition:transform var(--duration-medium) var(--ease-standard);}
+  .fs-collapsible.collapsed .fs-chevron{transform:rotate(0deg);}
   .filter-section-title{
     font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.06em;
     color:#6E6E6E; margin-bottom:4px;
   }
-  #viewBtn.has-active-filter::after{
+  #panelBtn.has-active-filter::after{
     content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
     border-radius:50%; background:var(--copper); border:1.5px solid var(--ink);
   }
 
 
   /* Sync panel */
-  #syncOverlay{
-    position:fixed; inset:0; background:rgba(11,20,33,0.75);
-    z-index:2000; display:none; align-items:center; justify-content:center;
-    backdrop-filter:blur(2px);
-  }
-  #syncOverlay.show{display:flex;}
-  #syncModal{
-    width:460px; max-width:94vw; max-height:88vh; overflow-y:auto;
-    background:var(--paper); color:var(--text-on-paper);
-    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
-  }
-  #syncModal .m-head{
-    padding:16px 20px; border-bottom:2px solid var(--copper);
-    display:flex; justify-content:space-between; align-items:center;
-  }
-  #syncModal .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
-  #syncModal .m-head .m-eyebrow{
-    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    color:#6E6E6E; margin-bottom:3px;
-  }
-  #syncModal .wd-body{padding:16px 20px;}
-  #syncModal input::placeholder{color:#A8A8A4; font-style:italic;}
+  #syncPanel .wd-body{padding:16px 20px; overflow-y:auto; flex:1; min-height:0;}
+  #syncPanel input::placeholder{color:#A8A8A4; font-style:italic;}
   .sync-status{
     font-family:'IBM Plex Mono'; font-size:11px; color:#4D4D4D;
     padding:10px 12px; margin-bottom:14px; border-radius:var(--radius-sm);
@@ -720,30 +698,18 @@
   }
   .sync-status.ok{border-left-color:#2E7D4F;}
   .sync-status.error{border-left-color:var(--danger); color:var(--danger);}
+  #syncPanel .wd-btn{display:inline-flex; align-items:center; gap:8px;}
+  #syncPanel .wd-btn .ico{width:15px; height:15px;}
   .sync-actions{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 16px;}
   .pub-section{margin-top:18px; padding-top:16px; border-top:1px solid var(--paper-dim);}
   .pub-title{font-family:'IBM Plex Sans', sans-serif; font-weight:600; font-size:14px; margin-bottom:10px;}
-  #syncModal select{width:100%;}
-  #dataBtn.sync-error::after{
+  #syncPanel select{width:100%;}
+  #panelBtn.sync-error::after{
     content:''; position:absolute; top:6px; right:6px; width:8px; height:8px;
     border-radius:50%; background:var(--danger); border:1.5px solid var(--ink);
   }
 
   /* Panneau des épingles superposées */
-  #dupOverlay{
-    position:fixed; inset:0; background:rgba(11,20,33,0.75);
-    z-index:2000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px);
-  }
-  #dupOverlay.show{display:flex;}
-  #dupModal{
-    width:500px; max-width:94vw; max-height:88vh; overflow-y:auto;
-    background:var(--paper); color:var(--text-on-paper);
-    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
-  }
-  #dupModal .m-head{padding:16px 20px; border-bottom:2px solid var(--copper); display:flex; justify-content:space-between; align-items:center;}
-  #dupModal .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
-  #dupModal .m-head .m-eyebrow{font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:3px;}
-  #dupModal .wd-body{padding:16px 20px;}
   .dup-group{border:1px solid var(--paper-dim); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:10px;}
   .dup-item{display:flex; flex-direction:column; padding:5px 0; border-bottom:1px dashed var(--paper-dim);}
   .dup-item:last-of-type{border-bottom:none;}
@@ -752,6 +718,8 @@
   .dup-actions{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; margin-top:10px;}
 
   .collections-list{margin-top:12px; display:flex; flex-direction:column; gap:2px;}
+  .fs-collapsible.collapsed #filterDecadeList{display:none;} /* après .collections-list */
+  .pj-sec.collapsed > .pj-body{display:none;}
   .collection-row{
     display:flex; align-items:center; gap:10px; padding:10px 4px; min-height:44px;
     border-bottom:1px solid var(--paper-dim);
@@ -780,27 +748,6 @@
 
   /* Wikidata import panel */
 
-  #wdOverlay{
-    position:fixed; inset:0; background:rgba(11,20,33,0.75);
-    z-index:2000; display:none; align-items:center; justify-content:center;
-    backdrop-filter:blur(2px);
-  }
-  #wdOverlay.show{display:flex;}
-  #wdModal{
-    width:560px; max-width:94vw; max-height:88vh;
-    background:var(--paper); color:var(--text-on-paper);
-    border-radius:var(--radius-lg); box-shadow:var(--shadow-lg);
-    display:flex; flex-direction:column;
-  }
-  #wdModal .m-head{
-    padding:16px 20px; border-bottom:2px solid var(--blueprint-dim);
-    display:flex; justify-content:space-between; align-items:center;
-  }
-  #wdModal .m-head h2{font-family:'IBM Plex Sans', sans-serif; font-size:16px; margin:0; font-weight:600;}
-  #wdModal .m-head .m-eyebrow{
-    font-family:'IBM Plex Mono'; font-size:10px; text-transform:uppercase; letter-spacing:0.08em;
-    color:#6E6E6E; margin-bottom:3px;
-  }
   .wd-tabs{display:flex; gap:0; padding:0 20px; border-bottom:1px solid var(--paper-dim);}
   .wd-tab, .m-tab{
     padding:10px 4px; margin-right:20px; min-height:44px; background:none; border:none; cursor:pointer;
@@ -808,7 +755,7 @@
     color:#6E6E6E; border-bottom:2px solid transparent;
   }
   .wd-tab.active, .m-tab.active{color:var(--text-on-paper); border-bottom-color:var(--copper);}
-  #wdModal .wd-body{padding:16px 20px; overflow-y:auto; flex:1;}
+  #importPanel .wd-body{padding:16px 20px; overflow-y:auto; flex:1; min-height:0;}
   .wd-row{display:flex; gap:8px; margin-bottom:10px;}
   .wd-row input, .wd-row select{
     min-height:44px; padding:0 10px; border:1px solid var(--paper-dim); border-radius:var(--radius-sm);
@@ -841,7 +788,7 @@
   }
   .wd-result-text .wr-title{font-size:13px; font-weight:500;}
   .wd-result-text .wr-meta{font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E; margin-top:2px;}
-  #wdModal .m-actions{
+  #importPanel .m-actions{
     display:flex; justify-content:space-between; align-items:center;
     padding:14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--paper-dim);
   }
@@ -859,21 +806,16 @@
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3V14M7.5 9.5L12 14L16.5 9.5M4 15V20H20V15"/></symbol>
   <symbol id="i-add" viewBox="0 0 24 24"><path d="M12 5V19M5 12H19"/></symbol>
   <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6L18 18M18 6L6 18"/></symbol>
-  <symbol id="i-view" viewBox="0 0 24 24"><path d="M3 7H21M3 17H21"/><rect x="7" y="4.5" width="5" height="5" fill="currentColor" stroke="none"/><rect x="13" y="14.5" width="5" height="5" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-data" viewBox="0 0 24 24"><path d="M8 20V4M4 8L8 4L12 8M16 4V20M12 16L16 20L20 16"/></symbol>
-  <symbol id="i-collections" viewBox="0 0 24 24"><path d="M3 8H17V20H3ZM7 8V4H21V16H17"/></symbol>
-  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5H20L14 12.5V19L10 20.5V12.5Z"/></symbol>
   <symbol id="i-layer" viewBox="0 0 24 24"><path d="M4 4H9V9H4ZM15 4H20V9H15ZM4 15H9V20H4ZM15 15H20V20H15Z"/></symbol>
-  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M19.5 10A8 8 0 0 0 5.5 6.5M4 3V8H9M4.5 14A8 8 0 0 0 18.5 17.5M20 21V16H15"/></symbol>
   <symbol id="i-merge" viewBox="0 0 24 24"><path d="M3 3H15V15H3ZM9 9H21V21H9Z"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4V15M7.5 10.5L12 15L16.5 10.5M5 20H19"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V9M7.5 13.5L12 9L16.5 13.5M5 4H19"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3V15M7.5 7.5L12 3L16.5 7.5M5 11V21H19V11"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6H20M9 12H20M9 18H20M4 5H6V7H4ZM4 11H6V13H4ZM4 17H6V19H4Z"/></symbol>
   <symbol id="i-locate" viewBox="0 0 24 24"><path d="M12 2V6M12 18V22M2 12H6M18 12H22M7 7H17V17H7Z"/><rect x="10.5" y="10.5" width="3" height="3" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 3H15L14 9.5L17 12.5V14.5H7V12.5L10 9.5ZM12 14.5V21"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><path d="M3 4H21V20H3ZM15 4V20M17.5 8H19M17.5 11H19"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9L12 15L18 9"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><path d="M4 4H15V15H4ZM15 15L20 20"/></symbol>
 </svg>
@@ -905,38 +847,12 @@
     <button id="searchClear" type="button" aria-label="Effacer la recherche" title="Effacer la recherche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
     <div id="searchResults" class="panel"></div>
   </div>
-  <button id="wdBtn" aria-label="Importer des bâtiments" title="Importer des bâtiments">
-    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-import"/></svg></span><span class="btn-label">Importer des bâtiments</span>
-  </button>
   <button id="addBtn" aria-label="Ajouter un projet" title="Ajouter un projet">
     <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-add"/></svg></span><span class="btn-label">Ajouter un projet</span>
   </button>
-  <button id="listBtn" aria-label="Vue liste des projets" title="Liste" aria-expanded="false" aria-controls="listPanel">
-    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg></span>
+  <button id="panelBtn" aria-label="Volet : projets, import et données" title="Volet" aria-expanded="false" aria-controls="sidePanel">
+    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-panel"/></svg></span>
   </button>
-  <button id="viewBtn" aria-label="Affichage : couches, filtres et collections" title="Affichage" aria-expanded="false" aria-controls="viewPanel">
-    <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-view"/></svg></span>
-  </button>
-  <div class="more-wrap">
-    <button id="dataBtn" aria-label="Importer ou exporter les données" title="Importer ou exporter les données" aria-haspopup="true" aria-expanded="false">
-      <span class="btn-icon"><svg class="ico" aria-hidden="true"><use href="#i-data"/></svg></span>
-    </button>
-    <div id="dataMenu" role="menu">
-      <button type="button" id="syncMenuBtn" role="menuitem">
-        <svg class="ico" aria-hidden="true"><use href="#i-sync"/></svg> <span id="syncMenuLabel">Synchronisation…</span>
-      </button>
-      <button type="button" id="dedupBtn" role="menuitem">
-        <svg class="ico" aria-hidden="true"><use href="#i-merge"/></svg> Fusionner les doublons
-      </button>
-      <button type="button" id="exportBtn" role="menuitem">
-        <svg class="ico" aria-hidden="true"><use href="#i-download"/></svg> Exporter les données (.json)
-      </button>
-      <button type="button" id="importBtn" role="menuitem">
-        <svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg> Importer des données (.json)
-      </button>
-      <input type="file" id="importFile" accept="application/json" hidden />
-    </div>
-  </div>
   <div id="filterChips" aria-label="Filtres actifs"></div>
 </div>
 
@@ -1115,7 +1031,7 @@
             <button class="wd-btn" id="f-collection-add" type="button">Créer et ajouter</button>
           </div>
         </div>
-        <div class="hint">Touche une pastille pour ajouter ou retirer ce projet. Pour supprimer une collection : panneau <svg class="ico ico-inline" aria-hidden="true"><use href="#i-view"/></svg> Affichage → Collections.</div>
+        <div class="hint">Touche une pastille pour ajouter ou retirer ce projet. Pour supprimer une collection : volet <svg class="ico ico-inline" aria-hidden="true"><use href="#i-panel"/></svg> → Affichage → Collections.</div>
       </div>
     </div>
     <div class="m-actions">
@@ -1126,74 +1042,67 @@
 </div>
 
 
-<div id="syncOverlay">
-  <div id="syncModal">
-    <div class="m-head">
-      <div>
-        <div class="m-eyebrow">Données</div>
-        <h2>Synchronisation</h2>
-      </div>
-      <button class="m-close" id="syncClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
-    </div>
-    <div class="wd-body">
-      <div id="syncStatus" class="sync-status">Non configurée : les données restent sur cet appareil.</div>
-      <form id="syncForm" action="#" method="post" autocomplete="on">
-      <div class="field">
-        <label for="syncRepo">Dépôt GitHub privé</label>
-        <input id="syncRepo" name="username" type="text" placeholder="ex. Ninjathune-Human/archibase-data" autocomplete="username" autocapitalize="off" spellcheck="false" />
-      </div>
-      <div class="field">
-        <label for="syncToken">Jeton d'accès</label>
-        <input id="syncToken" name="password" type="password" placeholder="Colle ici ton jeton (github_pat_…)" autocomplete="current-password" autocapitalize="off" spellcheck="false" />
-      </div>
-      <div class="field">
-        <label for="syncPath">Fichier</label>
-        <input id="syncPath" type="text" value="atlas-data.json" autocomplete="off" autocapitalize="off" spellcheck="false" />
-      </div>
-      <div class="sync-actions">
-        <button class="btn-primary" id="syncConnect" type="submit">Se connecter</button>
-        <button class="wd-btn" id="syncNow" type="button">Enregistrer mon travail</button>
-        <button class="btn-danger" id="syncDisconnect" type="button">Déconnecter cet appareil</button>
-      </div>
-      <div class="hint" style="margin-top:-6px;">Une fois connecté, ton travail est aussi enregistré automatiquement quelques secondes après chaque modification.</div>
-      </form>
-      <div class="pub-section">
-        <div class="pub-title">Publication</div>
-        <div id="pubStatus" class="sync-status">Rien n'a encore été publié.</div>
-        <div class="field">
-          <label for="pubRepo">Dépôt public (le site)</label>
-          <input id="pubRepo" type="text" placeholder="ex. Ninjathune-Human/Archibase" autocomplete="off" autocapitalize="off" spellcheck="false" />
-        </div>
-        <div class="field">
-          <label for="pubCollection">Que publier ?</label>
-          <select id="pubCollection"></select>
-        </div>
-        <label class="field-checkbox">
-          <input id="pubNotes" type="checkbox" />
-          <span>Inclure les notes et commentaires</span>
-        </label>
-        <div class="sync-actions">
-          <button class="btn-primary" id="pubBtn" type="button">Publier sur Archibase</button>
-        </div>
-        <div class="hint">Fige l'état actuel et le rend consultable par tous, en lecture seule. Ton relevé privé n'est pas modifié. Le jeton doit aussi avoir accès au dépôt public.</div>
-      </div>
-      <div class="hint">
-        À faire une seule fois : créer un dépôt <strong>privé</strong> sur GitHub, puis un jeton « fine-grained » limité à ce dépôt, avec la permission <em>Contents : Read and write</em>. Saisir ensuite le même dépôt et le même jeton sur chaque appareil.<br><br>
-        Le jeton reste enregistré sur cet appareil uniquement : ne pas l'utiliser sur un appareil partagé.
-      </div>
-    </div>
-  </div>
-</div>
 
-<aside id="listPanel" aria-label="Liste des projets" aria-hidden="true">
-  <div class="m-head">
-    <div>
-      <div class="m-eyebrow" id="listCount">Projets</div>
-      <h2>Liste</h2>
+<aside id="sidePanel" aria-label="Volet : projets, import et données" aria-hidden="true">
+  <div class="sp-resize" id="spResize" title="Faire glisser pour ajuster la largeur" aria-hidden="true"></div>
+  <div class="sp-grab" id="spGrab" aria-hidden="true"><span></span></div>
+  <div class="sp-head">
+    <div class="sp-seg" role="tablist" aria-label="Contenu du volet">
+      <button type="button" role="tab" id="tabList" data-tab="list" aria-controls="listPanel" aria-selected="true">Projets</button>
+      <button type="button" role="tab" id="tabImport" data-tab="import" aria-controls="importPanel" aria-selected="false">Import</button>
+      <button type="button" role="tab" id="tabSync" data-tab="sync" aria-controls="syncPanel" aria-selected="false">Données</button>
     </div>
-    <button class="m-close" id="listPanelClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+    <button class="m-close sp-pin on" id="pinBtn" type="button" aria-pressed="true" aria-label="Désancrer le volet" title="Volet ancré : toucher pour le désancrer"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg></button>
+    <button class="m-close" id="sideClose" type="button" aria-label="Fermer le volet"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
   </div>
-  <div class="lp-sort">
+  <div id="listPanel" class="sp-pane" role="tabpanel" aria-labelledby="tabList" aria-hidden="true">
+    <div class="pj-scroll" id="projectsScroll">
+      <section class="pj-sec fs-collapsible collapsed" id="secFilters">
+        <button type="button" class="pj-toggle" aria-expanded="false" aria-controls="secFiltersBody"><span class="vp-title">Filtres</span><span class="fs-summary" id="filtersSummary"></span><svg class="ico fs-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        <div class="pj-body" id="secFiltersBody">
+      <div class="hint">Combine plusieurs critères pour n'afficher qu'une partie des projets sur la carte. Se cumule avec les Collections.</div>
+      <div class="filter-bulk">
+        <button class="wd-btn" id="filtersSelectAll" type="button">Tout sélectionner</button>
+        <button class="wd-btn" id="filtersDeselectAll" type="button">Tout désélectionner</button>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Statut</div>
+        <div id="filterStatusList" class="collections-list"></div>
+      </div>
+      <div class="filter-section">
+        <div class="filter-section-title">Typologie</div>
+        <div id="filterTypologyList" class="collections-list"></div>
+      </div>
+      <div class="filter-section fs-collapsible collapsed" id="decadeSection">
+        <button type="button" class="fs-toggle" id="decadeToggle" aria-expanded="false" aria-controls="filterDecadeList">
+          <span class="filter-section-title">Date de réalisation</span>
+          <span class="fs-summary" id="decadeSummary"></span>
+          <svg class="ico fs-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+        </button>
+        <div id="filterDecadeList" class="collections-list"></div>
+      </div>
+        </div>
+      </section>
+      <section class="pj-sec fs-collapsible collapsed" id="secCollections">
+        <button type="button" class="pj-toggle" aria-expanded="false" aria-controls="secCollectionsBody"><span class="vp-title">Collections</span><span class="fs-summary" id="collectionsSummary"></span><svg class="ico fs-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></button>
+        <div class="pj-body" id="secCollectionsBody">
+      <div class="hint">Affiche ou masque des groupes de projets sur la carte. Un projet peut appartenir à plusieurs collections à la fois (à assigner depuis sa fiche).</div>
+      <div class="wd-row">
+        <input id="newCollectionInput" type="text" placeholder="Nouvelle collection, ex. Voyage Pays-Bas 2026" />
+        <button class="wd-btn" id="newCollectionAdd" type="button">Créer</button>
+      </div>
+      <div id="collectionsList" class="collections-list"></div>
+        </div>
+      </section>
+      <section class="pj-sec pj-layer">
+      <button type="button" id="refToggleBtn" role="switch" aria-checked="false" disabled>
+        <svg class="ico" aria-hidden="true"><use href="#i-layer"/></svg> <span id="refToggleLabel">Base de référence (chargement…)</span>
+      </button>
+      <div class="hint" style="margin:8px 0 0;">Des milliers de bâtiments d'architectes, avec photo, issus de Wikidata. Touche un point gris pour ouvrir sa fiche.</div>
+      </section>
+      <div class="pj-listhead">
+        <div class="sp-count" id="listCount">Projets</div>
+        <div class="lp-sort">
     <label for="listSort">Trier par</label>
     <select id="listSort">
       <option value="title">Nom</option>
@@ -1203,82 +1112,11 @@
       <option value="city">Ville</option>
     </select>
   </div>
-  <div class="lp-body" id="listBody"></div>
-</aside>
-<aside id="viewPanel" aria-label="Affichage" aria-hidden="true">
-  <div class="m-head">
-    <div>
-      <div class="m-eyebrow">Carte</div>
-      <h2>Affichage</h2>
-    </div>
-    <button class="m-close" id="viewPanelClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
-  </div>
-  <div class="vp-body">
-    <section class="vp-section">
-      <h3 class="vp-title">Couches</h3>
-      <button type="button" id="refToggleBtn" role="switch" aria-checked="false" disabled>
-        <svg class="ico" aria-hidden="true"><use href="#i-layer"/></svg> <span id="refToggleLabel">Base de référence (chargement…)</span>
-      </button>
-      <div class="hint" style="margin:8px 0 0;">Des milliers de bâtiments d'architectes, avec photo, issus de Wikidata. Touche un point gris pour ouvrir sa fiche.</div>
-    </section>
-    <section class="vp-section">
-      <h3 class="vp-title">Filtres</h3>
-      <div class="hint">Combine plusieurs critères pour n'afficher qu'une partie des projets sur la carte. Se cumule avec les Collections.</div>
-      <div class="filter-bulk">
-        <button class="wd-btn" id="filtersSelectAll" type="button">Tout sélectionner</button>
-        <button class="wd-btn" id="filtersDeselectAll" type="button">Tout désélectionner</button>
       </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Typologie</div>
-        <div id="filterTypologyList" class="collections-list"></div>
-      </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Décennie</div>
-        <div id="filterDecadeList" class="collections-list"></div>
-      </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Statut</div>
-        <div id="filterStatusList" class="collections-list"></div>
-      </div>
-    </section>
-    <section class="vp-section">
-      <h3 class="vp-title">Collections</h3>
-      <div class="hint">Affiche ou masque des groupes de projets sur la carte. Un projet peut appartenir à plusieurs collections à la fois (à assigner depuis sa fiche).</div>
-      <div class="wd-row">
-        <input id="newCollectionInput" type="text" placeholder="Nouvelle collection, ex. Voyage Pays-Bas 2026" />
-        <button class="wd-btn" id="newCollectionAdd" type="button">Créer</button>
-      </div>
-      <div id="collectionsList" class="collections-list"></div>
-    </section>
-  </div>
-</aside>
-
-<div id="dupOverlay">
-  <div id="dupModal">
-    <div class="m-head">
-      <div>
-        <div class="m-eyebrow">Données</div>
-        <h2>Épingles superposées</h2>
-      </div>
-      <button class="m-close" id="dupClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
-    </div>
-    <div class="wd-body">
-      <div class="hint" id="dupCount"></div>
-      <div id="dupList"></div>
+      <div class="lp-body" id="listBody"></div>
     </div>
   </div>
-</div>
-
-
-<div id="wdOverlay">
-  <div id="wdModal">
-    <div class="m-head">
-      <div>
-        <div class="m-eyebrow">Import</div>
-        <h2>Importer des bâtiments</h2>
-      </div>
-      <button class="m-close" id="wdClose" aria-label="Fermer"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
-    </div>
+  <div id="importPanel" class="sp-pane" role="tabpanel" aria-labelledby="tabImport" aria-hidden="true">
     <div class="wd-tabs">
       <button class="wd-tab active" data-tab="architect">Par architecte</button>
       <button class="wd-tab" data-tab="place">Par lieu</button>
@@ -1329,7 +1167,79 @@
       <button class="btn-primary" id="wdImportBtn" disabled>Importer la sélection</button>
     </div>
   </div>
-</div>
+  <div id="syncPanel" class="sp-pane" role="tabpanel" aria-labelledby="tabSync" aria-hidden="true">
+    <div class="wd-body">
+      <div class="pub-title">Synchronisation</div>
+      <div id="syncStatus" class="sync-status">Non configurée : les données restent sur cet appareil.</div>
+      <form id="syncForm" action="#" method="post" autocomplete="on">
+      <div class="field">
+        <label for="syncRepo">Dépôt GitHub privé</label>
+        <input id="syncRepo" name="username" type="text" placeholder="ex. Ninjathune-Human/archibase-data" autocomplete="username" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="syncToken">Jeton d'accès</label>
+        <input id="syncToken" name="password" type="password" placeholder="Colle ici ton jeton (github_pat_…)" autocomplete="current-password" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="field">
+        <label for="syncPath">Fichier</label>
+        <input id="syncPath" type="text" value="atlas-data.json" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      </div>
+      <div class="sync-actions">
+        <button class="btn-primary" id="syncConnect" type="submit">Se connecter</button>
+        <button class="wd-btn" id="syncNow" type="button">Enregistrer mon travail</button>
+        <button class="btn-danger" id="syncDisconnect" type="button">Déconnecter cet appareil</button>
+      </div>
+      <div class="hint" style="margin-top:-6px;">Une fois connecté, ton travail est aussi enregistré automatiquement quelques secondes après chaque modification.</div>
+      </form>
+      <div class="pub-section">
+        <div class="pub-title">Publication</div>
+        <div id="pubStatus" class="sync-status">Rien n'a encore été publié.</div>
+        <div class="field">
+          <label for="pubRepo">Dépôt public (le site)</label>
+          <input id="pubRepo" type="text" placeholder="ex. Ninjathune-Human/Archibase" autocomplete="off" autocapitalize="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="pubCollection">Que publier ?</label>
+          <select id="pubCollection"></select>
+        </div>
+        <label class="field-checkbox">
+          <input id="pubNotes" type="checkbox" />
+          <span>Inclure les notes et commentaires</span>
+        </label>
+        <div class="sync-actions">
+          <button class="btn-primary" id="pubBtn" type="button">Publier sur Archibase</button>
+        </div>
+        <div class="hint">Fige l'état actuel et le rend consultable par tous, en lecture seule. Ton relevé privé n'est pas modifié. Le jeton doit aussi avoir accès au dépôt public.</div>
+      </div>
+      <div class="hint">
+        À faire une seule fois : créer un dépôt <strong>privé</strong> sur GitHub, puis un jeton « fine-grained » limité à ce dépôt, avec la permission <em>Contents : Read and write</em>. Saisir ensuite le même dépôt et le même jeton sur chaque appareil.<br><br>
+        Le jeton reste enregistré sur cet appareil uniquement : ne pas l'utiliser sur un appareil partagé.
+      </div>
+      <div class="pub-section">
+        <div class="pub-title">Doublons</div>
+        <div class="hint" style="margin-top:0;">Fusionne les fiches en double sans perte d'information, puis présente ici les épingles superposées à vérifier.</div>
+        <div class="sync-actions">
+          <button class="wd-btn" id="dedupBtn" type="button"><svg class="ico" aria-hidden="true"><use href="#i-merge"/></svg><span>Fusionner les doublons</span></button>
+        </div>
+        <div class="hint" id="dupCount" style="display:none;"></div>
+        <div id="dupList"></div>
+      </div>
+      <div class="pub-section">
+        <div class="pub-title">Sauvegarde</div>
+        <div class="sync-actions">
+          <button class="wd-btn" id="exportBtn" type="button"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span>Exporter (.json)</span></button>
+          <button class="wd-btn" id="importBtn" type="button"><svg class="ico" aria-hidden="true"><use href="#i-upload"/></svg><span>Importer (.json)</span></button>
+          <input type="file" id="importFile" accept="application/json" hidden />
+        </div>
+        <div class="hint">Fichier de secours de tout ton relevé, à réimporter dans Atlas.</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+
+
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
@@ -1484,8 +1394,10 @@
 
   function updateFilterIndicator(){
     const active = !!(collectionFilter || typologyFilter || decadeFilter || statusFilter);
-    document.getElementById('viewBtn').classList.toggle('has-active-filter', active);
+    document.getElementById('panelBtn').classList.toggle('has-active-filter', active);
     renderFilterChips();
+    updateDecadeSummary();
+    updateSectionSummaries();
   }
 
   // Pastilles des filtres actifs : lisibles d'un coup d'œil, retirables d'un geste
@@ -1502,7 +1414,7 @@
     if(q) chips.push({key: 'search', text: `« ${q} »`});
     if(collectionFilter) chips.push({key: 'collections', text: 'Collections : ' + summarize(collectionFilter, id=> id === '__none__' ? 'sans collection' : ((collections.find(c=> c.id === id) || {}).name || '?'))});
     if(typologyFilter) chips.push({key: 'typology', text: 'Typologie : ' + summarize(typologyFilter, t=> t === '__none__' ? 'non renseignée' : t)});
-    if(decadeFilter) chips.push({key: 'decade', text: 'Décennie : ' + summarize(decadeFilter, d=> d === '__none__' ? 'inconnue' : d)});
+    if(decadeFilter) chips.push({key: 'decade', text: 'Date : ' + summarize(decadeFilter, d=> d === '__none__' ? 'inconnue' : d)});
     if(statusFilter) chips.push({key: 'status', text: 'Statut : ' + summarize(statusFilter, v=> v === 'visited' ? 'visité' : 'non visité')});
     if(chips.length > 1) chips.push({key: 'all', text: 'Tout effacer', all: true});
     el.innerHTML = chips.map(c=> `<button type="button" class="filter-chip${c.all ? ' chip-all' : ''}" data-key="${c.key}">
@@ -1645,6 +1557,7 @@
       'landcover_wood':           {'fill-color': '#1A1D1C'},
       'landuse_park':             {'fill-color': '#1A1D1C'},
       'landcover_ice_shelf':      {'fill-color': BG},
+      'landcover_glacier':        {'fill-color': BG},   /* Groenland, Antarctique : même teinte que les terres (le style d'origine les rendait plus sombres) */
       'water':                    {'fill-color': '#1D2A37'},
       'waterway':                 {'line-color': '#1D2A37'},
       'building':                 {'fill-color': '#1F2126', 'fill-outline-color': '#34373E'},
@@ -1670,10 +1583,31 @@
       'boundary_country_z0-4':    {'line-color': '#5A5D65'},
       'boundary_country_z5-':     {'line-color': '#5A5D65'},
     };
+    // Zoom d'apparition (MapLibre = zoom Leaflet − 1) : pas de routes aux petites échelles
+    const BASEMAP_MINZOOM = {
+      'highway_motorway_subtle': 7, 'highway_motorway_casing': 7, 'highway_motorway_inner': 7,
+      'highway_major_subtle': 7, 'highway_major_casing': 11, 'highway_major_inner': 11,
+      'highway_minor': 10, 'highway_path': 13,
+      'highway_name_motorway': 9, 'highway_name_other': 12,
+      'boundary_state': 6,
+    };
     const applyColors = ()=>{
       Object.entries(BASEMAP_PAINT).forEach(([id, paint])=>{
         if(!ml.getLayer(id)) return; // couche absente d'une future version du style : ignorée
         Object.entries(paint).forEach(([prop, val])=>{ try{ ml.setPaintProperty(id, prop, val); }catch(e){} });
+      });
+      Object.entries(BASEMAP_MINZOOM).forEach(([id, min])=>{
+        const l = ml.getLayer(id);
+        if(!l) return;
+        try{ ml.setLayerZoomRange(id, Math.max(min, l.minzoom || 0), l.maxzoom || 24); }catch(e){}
+      });
+      // Limites de pays : sans les limites maritimes (eaux territoriales), qui doublent les côtes au large
+      ['boundary_country_z0-4', 'boundary_country_z5-', 'boundary_state'].forEach(id=>{
+        if(!ml.getLayer(id)) return;
+        const f = ml.getFilter(id);
+        if(JSON.stringify(f || '').includes('maritime')) return; // déjà filtrée
+        const noSea = ['!=', ['get', 'maritime'], 1];
+        try{ ml.setFilter(id, f ? ['all', f, noSea] : noSea); }catch(e){}
       });
     };
     const apply = ()=>{
@@ -1756,6 +1690,7 @@
     }
 
     clusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false, // pas de polygone de zone au survol d'un groupe
       iconCreateFunction: function(cluster){
         return L.divIcon({
           html: `<div class="marker-cluster-custom" style="width:${34+Math.min(cluster.getChildCount(),20)}px;height:${34+Math.min(cluster.getChildCount(),20)}px;">${cluster.getChildCount()}</div>`,
@@ -1782,7 +1717,6 @@
       if(e.key !== 'Escape') return;
       if(placingNew) exitPlacingMode();
       else if(modalOverlay.classList.contains('show')) closeModal();
-      else if(wdOverlay.classList.contains('show')) wdOverlay.classList.remove('show');
     });
   }
 
@@ -2422,7 +2356,6 @@
   });
 
   // ---- Wikidata import ----
-  const wdOverlay = document.getElementById('wdOverlay');
   const wdResultsList = document.getElementById('wdResultsList');
   const wdSelectedCount = document.getElementById('wdSelectedCount');
   const wdImportBtn = document.getElementById('wdImportBtn');
@@ -2446,12 +2379,6 @@
     if(isNew) wdNewCollection.focus();
   });
 
-  document.getElementById('wdBtn').onclick = ()=>{
-    renderWdCollectionSelect();
-    wdOverlay.classList.add('show');
-  };
-  document.getElementById('wdClose').onclick = ()=> wdOverlay.classList.remove('show');
-  wdOverlay.addEventListener('click', (e)=>{ if(e.target===wdOverlay) wdOverlay.classList.remove('show'); });
 
   document.querySelectorAll('.wd-tab').forEach(tab=>{
     tab.onclick = ()=>{
@@ -2602,7 +2529,7 @@
       else newlyAdded.forEach(p=> addMarkerToMap(p, false));
       rebuildReferenceLayer();
       renderWdCollectionSelect(cid); // garder la collection choisie pour l'import suivant
-      wdOverlay.classList.remove('show');
+      if(!side.pinned) closeSide(); // ancré : le volet reste ouvert pour enchaîner les recherches
       const where = coll ? ` dans « ${coll.name} »` : '';
       const parts = [];
       if(newlyAdded.length) parts.push(`${newlyAdded.length} projet(s) importé(s)`);
@@ -2868,53 +2795,12 @@
     ];
   }
 
-  // ---- Menus (vue / données) ----
-  const viewBtn = document.getElementById('viewBtn');
-  const dataBtn = document.getElementById('dataBtn');
-  const dataMenu = document.getElementById('dataMenu');
-  const menuPairs = [[dataBtn, dataMenu]];
+  // ---- Boutons de la barre ouvrant le volet ----
+  const panelBtn = document.getElementById('panelBtn');
 
-  function closeAllMenus(){
-    menuPairs.forEach(([btn, menu])=>{
-      menu.classList.remove('show');
-      btn.setAttribute('aria-expanded', 'false');
-    });
-  }
-
-  menuPairs.forEach(([btn, menu])=>{
-    btn.onclick = (e)=>{
-      e.stopPropagation();
-      const show = !menu.classList.contains('show');
-      closeAllMenus();
-      if(show){
-        menu.classList.add('show');
-        btn.setAttribute('aria-expanded', 'true');
-      }
-    };
-  });
-
-  document.addEventListener('click', (e)=>{
-    const inside = menuPairs.some(([btn, menu])=> menu.contains(e.target) || btn.contains(e.target));
-    if(!inside) closeAllMenus();
-  });
-  document.addEventListener('keydown', (e)=>{
-    if(e.key === 'Escape') closeAllMenus();
-  });
-
-  // ---- Panneau Affichage : couches, filtres et collections réunis ----
-  const viewPanel = document.getElementById('viewPanel');
-  function isViewPanelOpen(){ return viewPanel.classList.contains('open'); }
-  function setViewPanel(open){
-    if(open){ closeAllMenus(); renderFiltersPanel(); renderCollectionsPanel(); if(isListOpen()) setListPanel(false); }
-    viewPanel.classList.toggle('open', open);
-    viewPanel.setAttribute('aria-hidden', String(!open));
-    viewBtn.setAttribute('aria-expanded', String(open));
-  }
-  viewBtn.onclick = (e)=>{ e.stopPropagation(); setViewPanel(!isViewPanelOpen()); };
-  document.getElementById('viewPanelClose').onclick = ()=> setViewPanel(false);
-  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && isViewPanelOpen()) setViewPanel(false); });
 
   function renderCollectionsPanel(){
+    updateSectionSummaries();
     const el = document.getElementById('collectionsList');
     const rows = [];
     const noneCount = projects.filter(p=>!p.collectionIds || !p.collectionIds.length).length;
@@ -3024,6 +2910,7 @@
       .map(d=>({id:d, label:d, count:decCounts[d]}));
     if(decCounts['__none__']) decOptions.push({id:'__none__', label:'Année inconnue', count: decCounts['__none__']});
     renderFilterGroup('filterDecadeList', decOptions, decadeFilter, (v)=>{ decadeFilter = v; });
+    updateDecadeSummary();
 
     // Statut
     const visitedCount = all.filter(p=>p.visited).length;
@@ -3033,6 +2920,48 @@
       {id:'notvisited', label:'Non visité', count: notVisitedCount}
     ];
     renderFilterGroup('filterStatusList', statusOptions, statusFilter, (v)=>{ statusFilter = v; });
+  }
+
+  // Sections repliables de l'onglet Projets (repliées par défaut, état mémorisé)
+  const SECTIONS_KEY = 'wa-atlas-sections';
+  let openSections = {};
+  try{ openSections = JSON.parse(localStorage.getItem(SECTIONS_KEY) || '{}'); }catch(e){}
+  document.querySelectorAll('.pj-sec[id]').forEach(sec=>{
+    const btn = sec.querySelector('.pj-toggle');
+    const set = (open, remember)=>{
+      sec.classList.toggle('collapsed', !open);
+      btn.setAttribute('aria-expanded', String(open));
+      if(remember){ openSections[sec.id] = open; try{ localStorage.setItem(SECTIONS_KEY, JSON.stringify(openSections)); }catch(e){} }
+    };
+    set(!!openSections[sec.id], false);
+    btn.onclick = ()=> set(sec.classList.contains('collapsed'), true);
+  });
+  // Résumés visibles section repliée
+  function updateSectionSummaries(){
+    const fs = document.getElementById('filtersSummary'), cs = document.getElementById('collectionsSummary');
+    if(fs){
+      const n = [statusFilter, typologyFilter, decadeFilter].filter(Boolean).length;
+      fs.textContent = n ? `${n} actif${n > 1 ? 's' : ''}` : 'aucun actif';
+    }
+    if(cs) cs.textContent = collections.length ? `${collections.length}${collectionFilter ? ' · filtre actif' : ''}` : 'aucune';
+  }
+
+  // Section « Date de réalisation » repliable (repliée par défaut, choix mémorisé)
+  const DECADE_OPEN_KEY = 'wa-atlas-decade-open';
+  const decadeSection = document.getElementById('decadeSection');
+  const decadeToggle = document.getElementById('decadeToggle');
+  function setDecadeOpen(open, remember){
+    decadeSection.classList.toggle('collapsed', !open);
+    decadeToggle.setAttribute('aria-expanded', String(open));
+    if(remember){ try{ localStorage.setItem(DECADE_OPEN_KEY, open ? '1' : '0'); }catch(e){} }
+  }
+  try{ setDecadeOpen(localStorage.getItem(DECADE_OPEN_KEY) === '1', false); }catch(e){ setDecadeOpen(false, false); }
+  decadeToggle.onclick = ()=> setDecadeOpen(decadeSection.classList.contains('collapsed'), true);
+  function updateDecadeSummary(){
+    const el = document.getElementById('decadeSummary');
+    if(!el) return;
+    const total = document.querySelectorAll('#filterDecadeList input[data-fid]').length;
+    el.textContent = !decadeFilter ? 'toutes' : decadeFilter.size === 0 ? 'aucune' : `${decadeFilter.size} sur ${total}`;
   }
 
   // Sélection groupée : null = tout afficher ; ensemble vide = rien afficher (on recoche ensuite ce qu'on veut)
@@ -3075,7 +3004,6 @@
   };
 
   document.getElementById('exportBtn').onclick = ()=>{
-    closeAllMenus();
     const payload = {
       app: 'atlas-architecture', version: 1,
       exportedAt: new Date().toISOString(),
@@ -3095,7 +3023,6 @@
   };
 
   document.getElementById('importBtn').onclick = ()=>{
-    closeAllMenus();
     document.getElementById('importFile').click();
   };
 
@@ -3377,15 +3304,17 @@
     return [...groups.values()].filter(g=> g.length > 1 && !ignored.has(groupKey(g)));
   }
 
-  const dupOverlay = document.getElementById('dupOverlay');
   function renderSuspects(){
     const groups = findSuspectGroups();
     const el = document.getElementById('dupList');
+    const countEl = document.getElementById('dupCount');
     if(!groups.length){
-      dupOverlay.classList.remove('show');
-      showToast('Plus aucune épingle superposée à vérifier.');
+      if(el.innerHTML) showToast('Plus aucune épingle superposée à vérifier.');
+      el.innerHTML = '';
+      countEl.style.display = 'none';
       return;
     }
+    countEl.style.display = '';
     document.getElementById('dupCount').textContent = `${groups.length} emplacement(s) avec plusieurs fiches superposées. Vérifie s'il s'agit du même bâtiment.`;
     el.innerHTML = groups.map((g, i)=> `
       <div class="dup-group" data-i="${i}">
@@ -3399,7 +3328,7 @@
       </div>`).join('');
     el.querySelectorAll('.dup-group').forEach(card=>{
       const g = groups[Number(card.dataset.i)];
-      card.querySelector('[data-act="see"]').onclick = ()=>{ dupOverlay.classList.remove('show'); map.setView([g[0].lat, g[0].lng], 18); };
+      card.querySelector('[data-act="see"]').onclick = ()=>{ map.setView([g[0].lat, g[0].lng], 18); };
       card.querySelector('[data-act="ignore"]').onclick = ()=>{
         const ig = ignoredGroups(); ig.add(groupKey(g));
         try{ localStorage.setItem(DUP_IGNORED_KEY, JSON.stringify([...ig])); }catch(e){}
@@ -3416,13 +3345,11 @@
         renderSuspects();
       };
     });
-    dupOverlay.classList.add('show');
+    openSide('sync'); // la vérification s'affiche dans l'onglet Données du volet
+    if(countEl.scrollIntoView) countEl.scrollIntoView({block: 'start', behavior: 'smooth'});
   }
-  document.getElementById('dupClose').onclick = ()=> dupOverlay.classList.remove('show');
-  dupOverlay.addEventListener('click', (e)=>{ if(e.target === dupOverlay) dupOverlay.classList.remove('show'); });
 
   document.getElementById('dedupBtn').onclick = async ()=>{
-    closeAllMenus();
     // 1. Doublons certains : fusion automatique après confirmation
     const groups = findDuplicateGroups();
     if(groups.length){
@@ -3501,25 +3428,107 @@
   }
 
   // ---- Vue liste : mêmes projets que la carte (recherche et filtres compris), triables ----
-  const listPanel = document.getElementById('listPanel');
-  const listBtn = document.getElementById('listBtn');
   const LIST_PAGE = 200;
   let listShown = LIST_PAGE;
-  function isListOpen(){ return listPanel.classList.contains('open'); }
-  function setListPanel(open){
-    if(open){
-      if(typeof isViewPanelOpen === 'function' && isViewPanelOpen()) setViewPanel(false); // un seul panneau à la fois
-      listShown = LIST_PAGE;
-      renderList();
-    }
-    listPanel.classList.toggle('open', open);
-    listPanel.setAttribute('aria-hidden', String(!open));
-    listBtn.setAttribute('aria-expanded', String(open));
-  }
-  listBtn.onclick = (e)=>{ e.stopPropagation(); setListPanel(!isListOpen()); };
-  document.getElementById('listPanelClose').onclick = ()=> setListPanel(false);
   document.getElementById('listSort').onchange = ()=>{ listShown = LIST_PAGE; renderList(); };
-  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && isListOpen() && !modalOverlay.classList.contains('show')) setListPanel(false); });
+
+  // ---- Volet unique (Liste / Affichage) : partage l'écran avec la carte, ancré par défaut ----
+  const PANEL_KEY = 'wa-atlas-panel';
+  const sidePanel = document.getElementById('sidePanel');
+  const pinBtn = document.getElementById('pinBtn');
+  const side = {open: false, tab: 'list', pinned: true, w: 380, h: 50};
+  try{ Object.assign(side, JSON.parse(localStorage.getItem(PANEL_KEY) || '{}')); }catch(e){}
+  const clampW = (w)=> Math.round(Math.min(Math.max(w, 300), Math.max(300, Math.min(640, window.innerWidth * 0.6))));
+  const clampH = (h)=> Math.round(Math.min(Math.max(h, 30), 85));
+  function applySideSize(){
+    document.documentElement.style.setProperty('--panel-w', clampW(side.w) + 'px');
+    document.documentElement.style.setProperty('--sheet-h', clampH(side.h) + 'vh');
+  }
+  function saveSide(){ try{ localStorage.setItem(PANEL_KEY, JSON.stringify(side)); }catch(e){} }
+  // La carte change de taille : Leaflet (et le fond MapLibre) doivent se recadrer, pendant et après l'animation
+  function refreshMapSize(){
+    if(!map) return;
+    map.invalidateSize();
+    clearTimeout(refreshMapSize.t);
+    refreshMapSize.t = setTimeout(()=> map.invalidateSize(), 300);
+  }
+  function renderSide(){
+    document.body.classList.toggle('panel-open', side.open);
+    sidePanel.setAttribute('aria-hidden', String(!side.open));
+    panelBtn.setAttribute('aria-expanded', String(side.open));
+    [['list', 'listPanel', 'tabList'], ['import', 'importPanel', 'tabImport'], ['sync', 'syncPanel', 'tabSync']].forEach(([t, paneId, tabId])=>{
+      const on = side.open && side.tab === t;
+      const pane = document.getElementById(paneId), tab = document.getElementById(tabId);
+      pane.classList.toggle('open', on);
+      pane.setAttribute('aria-hidden', String(!on));
+      tab.classList.toggle('active', side.tab === t);
+      tab.setAttribute('aria-selected', String(side.tab === t));
+    });
+    pinBtn.classList.toggle('on', side.pinned);
+    pinBtn.setAttribute('aria-pressed', String(side.pinned));
+    pinBtn.setAttribute('aria-label', side.pinned ? 'Désancrer le volet' : 'Ancrer le volet');
+    pinBtn.title = side.pinned ? 'Volet ancré : toucher pour le désancrer' : 'Volet non ancré : toucher pour l\'ancrer';
+  }
+  function openSide(tab){
+    const wasOpen = side.open;
+    if(tab) side.tab = tab;
+    side.open = true;
+    if(!['list','import','sync'].includes(side.tab)) side.tab = 'list'; // l'ancien onglet Affichage fait partie de Projets
+    if(side.tab === 'list'){ listShown = LIST_PAGE; renderFiltersPanel(); renderCollectionsPanel(); renderList(); }
+    else if(side.tab === 'import') renderWdCollectionSelect();
+    else fillSyncPanel();
+    renderSide(); saveSide();
+    if(!wasOpen) refreshMapSize();
+  }
+  function closeSide(){
+    if(!side.open) return;
+    side.open = false;
+    renderSide(); saveSide(); refreshMapSize();
+  }
+  // Compatibilité avec le reste de l'app
+  function isListOpen(){ return side.open && side.tab === 'list'; }
+  function isViewPanelOpen(){ return isListOpen(); } // filtres et collections vivent dans l'onglet Projets
+  function setListPanel(open){ if(open) openSide('list'); else if(isListOpen()) closeSide(); }
+  function setViewPanel(open){ setListPanel(open); }
+  // Un seul bouton : ouvre le volet sur le dernier onglet utilisé, ou le ferme
+  panelBtn.onclick = (e)=>{ e.stopPropagation(); side.open ? closeSide() : openSide(side.tab); };
+  document.getElementById('tabList').onclick = ()=> openSide('list');
+  document.getElementById('tabImport').onclick = ()=> openSide('import');
+  document.getElementById('tabSync').onclick = ()=> openSide('sync');
+  document.getElementById('sideClose').onclick = closeSide;
+  pinBtn.onclick = ()=>{ side.pinned = !side.pinned; renderSide(); saveSide(); showToast(side.pinned ? 'Volet ancré.' : 'Volet désancré : il se refermera après usage.'); };
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && side.open && !modalOverlay.classList.contains('show') && !(typeof isPubViewOpen === 'function' && isPubViewOpen())) closeSide();
+  });
+
+  // Largeur réglable (ordinateur, iPad) et hauteur réglable (iPhone), mémorisées
+  function dragResize(handle, onMove){
+    handle.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      handle.classList.add('dragging');
+      document.body.classList.add('resizing');
+      let raf = 0;
+      const move = (ev)=>{ onMove(ev); applySideSize(); if(!raf) raf = requestAnimationFrame(()=>{ raf = 0; map && map.invalidateSize(); }); };
+      const up = ()=>{
+        handle.releasePointerCapture(e.pointerId);
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        saveSide(); refreshMapSize();
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+  }
+  dragResize(document.getElementById('spResize'), (ev)=>{ side.w = clampW(window.innerWidth - ev.clientX); });
+  dragResize(document.getElementById('spGrab'), (ev)=>{ side.h = clampH((window.innerHeight - ev.clientY) / window.innerHeight * 100); });
+  window.addEventListener('resize', ()=>{ applySideSize(); });
+  applySideSize();
+  renderSide();
 
   // Miniature : les images Commons sont demandées en petite taille
   function thumbUrl(u){
@@ -3553,7 +3562,7 @@
     body.querySelectorAll('.lp-item').forEach(btn=>{
       btn.onclick = ()=>{
         const x = shown[Number(btn.dataset.i)];
-        if(window.innerWidth <= 600) setListPanel(false); // sur iPhone, la feuille cacherait la carte
+        if(!side.pinned) closeSide(); // désancré : le volet s'efface après usage
         map.setView([x.p.lat, x.p.lng], Math.max(map.getZoom(), 16));
         if(x.pub) openPublishedItem(x.p); else openEditModal(x.p.id);
       };
@@ -3807,8 +3816,7 @@
     const el = document.getElementById('syncStatus');
     el.textContent = text;
     el.className = 'sync-status' + (kind ? ' ' + kind : '');
-    document.getElementById('dataBtn').classList.toggle('sync-error', kind === 'error');
-    document.getElementById('syncMenuLabel').textContent = kind === 'error' ? 'Synchronisation : erreur' : 'Synchronisation…';
+    document.getElementById('panelBtn').classList.toggle('sync-error', kind === 'error');
   }
 
   function scheduleSync(delay){
@@ -3865,16 +3873,13 @@
   }
 
   // Panneau de réglage
-  const syncOverlay = document.getElementById('syncOverlay');
-  function openSyncPanel(){
-    closeAllMenus();
+  function fillSyncPanel(){
     if(syncConfig){
       document.getElementById('syncRepo').value = syncConfig.repo;
       document.getElementById('syncPath').value = syncConfig.path;
       document.getElementById('syncToken').value = syncConfig.token;
     }
     renderPublishPanel();
-    syncOverlay.classList.add('show');
   }
 
   // ---- Publication : état figé du relevé écrit dans data/published.json du dépôt public ----
@@ -3959,10 +3964,6 @@
       btn.disabled = false;
     }
   };
-  document.getElementById('syncMenuBtn').onclick = openSyncPanel;
-  document.getElementById('syncClose').onclick = ()=> syncOverlay.classList.remove('show');
-  syncOverlay.addEventListener('click', (e)=>{ if(e.target === syncOverlay) syncOverlay.classList.remove('show'); });
-  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') syncOverlay.classList.remove('show'); });
 
   // Soumission d'un vrai formulaire (dépôt = identifiant, jeton = mot de passe) :
   // c'est ce qui permet aux gestionnaires de mots de passe de proposer l'enregistrement puis le remplissage.
@@ -3986,10 +3987,6 @@
       await performSync(true, 'connect');
       if(!meta.private){
         setSyncStatus('Attention : ce dépôt est public, tes données y sont visibles par tous. Passe-le en privé dans ses réglages GitHub.', 'error');
-      }else{
-        // Fermer le panneau après succès : la disparition du formulaire est le signal
-        // qu'attendent Chrome et Edge pour proposer d'enregistrer l'identifiant.
-        setTimeout(()=> syncOverlay.classList.remove('show'), 1200);
       }
     }catch(e){
       syncConfig = null;
@@ -4034,6 +4031,8 @@
         map.fitBounds(bounds.pad(0.4));
       }
       loadReference(); // sans await : la carte personnelle s'affiche sans attendre la référence
+      map.on('click', ()=>{ if(side.open && !side.pinned && !placingNew && !modalOverlay.classList.contains('show')) closeSide(); });
+      if(side.open && side.pinned) openSide(side.tab === 'sync' ? 'list' : side.tab); else { side.open = false; renderSide(); } // volet ancré : rouvert tel qu'on l'a laissé
       handleHash();
       loadPublished().then(handleHash);
       if(syncConfig) performSync(false);

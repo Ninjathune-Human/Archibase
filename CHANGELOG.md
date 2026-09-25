@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.12.0
+### Changé
+- Volet unique partageant l'écran avec la carte (à droite ; en bas sur iPhone), ancré par défaut, largeur réglable, ouvert par un seul bouton : onglets Projets (filtres, collections, base de référence et liste réunis), Import et Données. Remplace les panneaux gauche et droite, les fenêtres Import et Synchronisation, et le menu déroulant Données.
+- Filtres : statut en tête, date de réalisation repliable avec résumé.
+- Carte : plus de polygone au survol des groupes ; animations de regroupement rétablies (la règle de mouvement réduit ne vise plus que les effets décoratifs).
+- Carte : routes masquées aux petites échelles (autoroutes à l'échelle régionale, rues à l'échelle de la ville), limites maritimes retirées, limites régionales à partir de l'échelle d'un pays ; Groenland et Antarctique dans la même teinte que les autres terres.
+
 ## 1.11.0
 ### Ajouté
 - Fiche éditoriale pour la consultation des projets publiés : grande photo et galerie, titre, architecte et année, adresse avec itinéraire, notes, plans, commentaires publiés et liens (article, Wikidata, Structurae). Remplace le formulaire en lecture seule.

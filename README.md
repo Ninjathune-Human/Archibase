@@ -9,7 +9,7 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 ## Fonctionnalités
 
 **Carte**
-- Fond vectoriel OpenFreeMap (MapLibre GL) recoloré pour la lisibilité : bâtiments, rues, eau et voies ferrées distincts ; noms des pays et capitales seuls aux zooms larges
+- Fond vectoriel OpenFreeMap (MapLibre GL) recoloré pour la lisibilité : bâtiments, rues, eau et voies ferrées distincts ; aux petites échelles, seuls les pays, capitales et côtes restent (ni routes, ni limites maritimes)
 - Épingles blanches, rouges une fois « visité », regroupées selon le zoom ; légende repliable
 - Épingles figées par défaut ; déplacement via « Déplacer l'épingle » dans la fiche, avec Valider / Annuler
 - « Autour de moi » : centrage sur la position de l'appareil
@@ -22,8 +22,9 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 
 **Trouver et organiser**
 - Recherche par nom, architecte ou ville : la carte et la liste se filtrent en direct
-- Panneau « Affichage » : couches, filtres (typologie, décennie, statut) et collections ; chaque filtre actif apparaît en pastille retirable
-- Vue liste triable (nom, architecte, année, ville)
+- Un volet unique, ouvert par un seul bouton, qui partage l'écran avec la carte (à droite ; en bas sur iPhone) : onglets Projets, Import et Données ; ancré par défaut, largeur réglable
+- Onglet Projets : filtres (statut, typologie, date de réalisation) et collections en sections repliables, base de référence, puis la liste des projets correspondants ; chaque filtre actif apparaît en pastille retirable
+- Liste triable (nom, architecte, année, ville), mise à jour à chaque filtre
 - Collections : un projet peut appartenir à plusieurs
 
 **Importer**
@@ -40,7 +41,7 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 **Données**
 - Stockage dans le navigateur (`localStorage`), sans compte
 - Synchronisation facultative entre appareils via un dépôt GitHub privé
-- Export / import JSON depuis le menu Données
+- Onglet Données : synchronisation, publication, doublons, export / import JSON
 
 **Qualité**
 - Accessibilité : focus clavier visible, cibles tactiles de 44 px, contraste AA, `aria-label`, zones sûres iPhone, `prefers-reduced-motion`
@@ -70,13 +71,13 @@ Le relevé personnel (projets, collections) peut être synchronisé entre plusie
 **Mise en place (une fois)**
 1. Créer un dépôt **privé** sur GitHub, par exemple `archibase-data`
 2. Créer un jeton *fine-grained* (Settings → Developer settings → Personal access tokens → Fine-grained tokens) limité à ce dépôt, avec la permission *Contents : Read and write*
-3. Sur chaque appareil : menu ⇅ → Synchronisation → saisir le dépôt et le jeton
+3. Sur chaque appareil : volet → onglet Données → saisir le dépôt et le jeton
 
 Le jeton est conservé uniquement sur l'appareil ; ne pas le saisir sur un appareil partagé.
 
 ## Publication
 
-Le relevé privé reste la version de travail. Depuis le panneau *Synchronisation* (menu ⇅), le bouton **Publier sur Archibase** fige son état et l'écrit dans `data/published.json` de ce dépôt public.
+Le relevé privé reste la version de travail. Depuis l'onglet *Données* du volet, le bouton **Publier sur Archibase** fige son état et l'écrit dans `data/published.json` de ce dépôt public.
 
 - Choix du contenu : tout le relevé, ou une seule collection
 - Notes et commentaires exclus par défaut (case à cocher pour les inclure) ; collections et données internes jamais publiées
