@@ -517,7 +517,7 @@
   .pv-block{margin-top:22px; padding-top:18px; border-top:1px solid var(--paper-dim);}
   .pv-label{font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:8px;}
   .pv-address{font-size:14px; line-height:1.5;}
-  .pss-link{display:inline-flex; align-items:center; min-height:40px; margin-top:4px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
+  .pss-link{display:inline-flex; align-items:center; min-height:40px; margin:-6px 0 8px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
   .pv-maps{display:inline-flex; align-items:center; min-height:44px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
   .pv-notes{font-size:15px; line-height:1.65; margin:0; color:#2A2A2A;}
   .pv-comment{margin:0 0 10px; padding:10px 14px; border-left:2px solid var(--copper); background:#F3F2EE; font-size:14px; line-height:1.5;}
@@ -935,6 +935,7 @@
           <button class="wd-btn" id="autofillBtn" type="button"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span>Compléter automatiquement</span></button>
         </div>
         <div class="geocode-status" id="autofillStatus" style="margin-bottom:12px;"></div>
+        <a id="f-pss" class="pss-link" target="_blank" rel="noopener" style="display:none;">Voir la fiche PSS-archi ↗</a>
         <div class="field-row">
           <div class="field">
             <label>Architecte(s)</label>
@@ -985,7 +986,6 @@
               <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
               <a id="f-source-open" href="#" target="_blank" rel="noopener" aria-label="Ouvrir l'article dans un nouvel onglet" title="Ouvrir l'article"><span>Ouvrir</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5 H9.5 V8.5 M9.5 2.5 L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
             </div>
-            <a id="f-pss" class="pss-link" target="_blank" rel="noopener" style="display:none;">Voir la fiche PSS-archi ↗</a>
           </div>
           <div class="field">
             <label>Notes</label>
@@ -3195,6 +3195,10 @@
     document.getElementById('modalEyebrow').textContent = 'Base de référence';
     document.getElementById('modalTitle').textContent = r[1];
     document.getElementById('saveBtn').textContent = 'Ajouter à mon relevé';
+    const pssEl = document.getElementById('f-pss'), qid = 'Q' + r[0];
+    const showPss = (id)=>{ if(id && pendingWikidataId === qid){ pssEl.href = pssUrl(id); pssEl.style.display = ''; } };
+    if(r.length > 7) showPss(r[7]);                 // base récente : identifiant déjà présent
+    else pssIdFor({wikidataId: qid}).then(showPss); // ancienne base : demandé à Wikidata
   }
 
   function findReferenceByTitle(title){
