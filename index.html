@@ -81,7 +81,7 @@
   /* Top bar */
   #topbar{
     position:absolute; top:16px; left:16px; right:16px; z-index:1000;
-    display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start;
+    display:flex; flex-wrap:wrap; gap:12px; align-items:center;
     pointer-events:none;
     padding-top:env(safe-area-inset-top, 0px);
   }
@@ -119,7 +119,7 @@
   }
   #searchwrap{
     position:relative;
-    flex:1; min-width:220px; max-width:480px;
+    flex:1; min-width:160px; max-width:480px;
     display:flex; align-items:center; gap:8px;
     padding:0 18px;
     border-radius:var(--radius-full) !important;
@@ -189,7 +189,7 @@
   @media (max-width: 900px){
     #brand .subtitle{display:none;}
     #brand{padding:8px 12px;}
-    #searchwrap{order:3; flex-basis:100%; max-width:none; min-width:0;}
+    #searchwrap{max-width:none;} /* une seule ligne : la recherche occupe la place libre */
     #addBtn{
       width:44px; padding:0; justify-content:center; gap:0;
     }
@@ -442,7 +442,14 @@
   }
   #moveCancel{background:none; color:var(--paper); border:1px solid var(--blueprint-dim);}
   #moveConfirm{background:var(--copper); color:var(--ink); border:none;}
-  @media (max-width: 900px){ #moveBar{top:132px;} }
+  /* iPhone : symbole seul, compteur masqué, pour garder une recherche utilisable sur la même ligne */
+  @media (max-width: 600px){
+    #brand .brand-text{display:none;}
+    #brand{padding:8px 10px;}
+    #searchwrap{min-width:0; padding:0 12px;}
+    #searchCount{display:none;}
+    #topbar{gap:8px;}
+  }
   #crosshairHint{
     position:absolute; top:80px; left:50%; transform:translateX(-50%);
     background:var(--danger); color:var(--paper); padding:8px 16px; border-radius:var(--radius-md);
@@ -510,6 +517,7 @@
   .pv-block{margin-top:22px; padding-top:18px; border-top:1px solid var(--paper-dim);}
   .pv-label{font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:8px;}
   .pv-address{font-size:14px; line-height:1.5;}
+  .pss-link{display:inline-flex; align-items:center; min-height:40px; margin-top:4px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
   .pv-maps{display:inline-flex; align-items:center; min-height:44px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
   .pv-notes{font-size:15px; line-height:1.65; margin:0; color:#2A2A2A;}
   .pv-comment{margin:0 0 10px; padding:10px 14px; border-left:2px solid var(--copper); background:#F3F2EE; font-size:14px; line-height:1.5;}
@@ -977,6 +985,7 @@
               <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
               <a id="f-source-open" href="#" target="_blank" rel="noopener" aria-label="Ouvrir l'article dans un nouvel onglet" title="Ouvrir l'article"><span>Ouvrir</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5 H9.5 V8.5 M9.5 2.5 L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
             </div>
+            <a id="f-pss" class="pss-link" target="_blank" rel="noopener" style="display:none;">Voir la fiche PSS-archi ↗</a>
           </div>
           <div class="field">
             <label>Notes</label>
@@ -2064,6 +2073,7 @@
     editingId = null;
     document.getElementById('shareBtn').style.display = 'none';
     pendingWikidataId = null;
+    document.getElementById('f-pss').style.display = 'none';
     autofillQid = null;
     clearForm();
     document.getElementById('saveBtn').textContent = 'Enregistrer';
@@ -2105,7 +2115,36 @@
     currentShareId = p.id; writeHash();
     document.getElementById('shareBtn').style.display = '';
     document.getElementById('moveBtn').style.display = syncConfig ? '' : 'none';
+    showPssLink(p, document.getElementById('f-pss'));
     modalOverlay.classList.add('show');
+  }
+
+  // ---- Lien vers la fiche PSS-archi : identifiant Wikidata P1838 (« PSS-archi ID ») ----
+  // Ordre de recherche : base de référence (aucun appel réseau), puis Wikidata en direct, une seule fois par bâtiment.
+  // Rien n'est enregistré dans les fiches : pas de modification, donc pas de synchronisation déclenchée.
+  const pssCache = new Map(); // identifiant Wikidata → identifiant PSS ('' = aucun)
+  const pssUrl = (id)=> 'https://www.pss-archi.eu/immeubles/' + encodeURIComponent(id) + '.html';
+  async function pssIdFor(p){
+    const qids = [p.wikidataId, ...(p.altWikidataIds || [])].filter(q=> /^Q\d+$/.test(q || ''));
+    for(const q of qids){
+      if(!pssCache.has(q)){
+        try{
+          const rows = await sparqlQuery(`SELECT ?pss WHERE { wd:${q} wdt:P1838 ?pss . } LIMIT 1`, 15000);
+          pssCache.set(q, rows.length ? rows[0].pss.value : '');
+        }catch(e){ continue; } // réseau indisponible : on réessaiera à la prochaine ouverture
+      }
+      if(pssCache.get(q)) return pssCache.get(q);
+    }
+    return '';
+  }
+  async function showPssLink(p, el){
+    if(!el) return;
+    el.style.display = 'none';
+    el.removeAttribute('href');
+    const id = await pssIdFor(p);
+    if(!id || currentShareId !== p.id) return; // fiche fermée ou changée entre-temps
+    el.href = pssUrl(id);
+    el.style.display = '';
   }
 
   // ---- Fiche éditoriale : consultation d'un projet publié ----
@@ -2125,6 +2164,7 @@
     const links = [];
     if(p.source) links.push(link(p.source, /wikipedia\.org/.test(p.source) ? 'Wikipédia' : /wikidata\.org/.test(p.source) ? 'Wikidata' : 'Lire l\'article'));
     if(p.wikidataId && !/wikidata\.org/.test(p.source || '')) links.push(link('https://www.wikidata.org/wiki/' + p.wikidataId, 'Wikidata'));
+    links.push(`<a class="pv-link" id="pvPss" target="_blank" rel="noopener" style="display:none;"><span>PSS-archi</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`); // rempli si un identifiant PSS existe
     links.push(link('https://structurae.net/en/search?query=' + encodeURIComponent(p.title || ''), 'Structurae'));
     const body = document.getElementById('pubViewBody');
     body.innerHTML = `
@@ -2153,6 +2193,7 @@
     body.scrollTop = 0;
     currentShareId = p.id; writeHash();
     pvOverlay.classList.add('show');
+    showPssLink(p, document.getElementById('pvPss'));
     document.getElementById('pubViewClose').focus();
   }
   function closePubView(){
@@ -3175,6 +3216,7 @@
       if(!data || !Array.isArray(data.rows)) throw new Error('format');
       refRows = data.rows;
       refIndex = refRows.map(r=> norm(r[1] + ' ' + r[2]));
+      refRows.forEach(r=>{ if(r.length > 7) pssCache.set('Q' + r[0], r[7] || ''); }); // base construite avec P1838
       refBuiltAt = data.builtAt || '';
       try{ refVisible = localStorage.getItem(REF_VISIBLE_KEY) === '1'; }catch(e){ refVisible = false; }
       btn.disabled = false;

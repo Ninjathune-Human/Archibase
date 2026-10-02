@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.0
+### Ajouté
+- Lien « Voir la fiche PSS-archi » sur les fiches des bâtiments liés à Wikidata, vers la fiche PSS exacte, via l'identifiant Wikidata P1838 (« PSS-archi ID »). Identifiant lu dans la base de référence, sinon demandé à Wikidata une seule fois par bâtiment ; rien n'est extrait du site PSS.
+- Base de référence : 8e colonne `pss` (identifiant PSS-archi) ajoutée par le script de construction.
+
 ## 1.12.0
 ### Changé
 - Volet unique partageant l'écran avec la carte (à droite ; en bas sur iPhone), ancré par défaut, largeur réglable, ouvert par un seul bouton : onglets Projets (filtres, collections, base de référence et liste réunis), Import et Données. Remplace les panneaux gauche et droite, les fenêtres Import et Synchronisation, et le menu déroulant Données.
