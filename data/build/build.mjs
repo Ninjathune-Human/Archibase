@@ -1,5 +1,5 @@
 // Construit data/reference.json : bâtiments Wikidata ayant un architecte (P84),
-// des coordonnées (P625) et une photo (P18), avec leur identifiant PSS-archi (P1838) s'il existe.
+// des coordonnées (P625) et une photo (P18), avec leurs identifiants PSS-archi (P1838) et archINFORM (P5383) s'ils existent.
 // Exécuté chaque semaine par .github/workflows/build-reference.yml (Node 20+, fetch natif).
 //
 // Deux étapes, pour rester sous la limite de 60 s par requête de Wikidata :
@@ -73,13 +73,14 @@ async function details(ids) {
   const values = ids.map((q) => 'wd:' + q).join(' ');
   return sparql(`
     SELECT ?item ?itemLabel
-           (SAMPLE(?coord) AS ?c) (SAMPLE(?img) AS ?i) (MIN(YEAR(?d)) AS ?y) (SAMPLE(?pssv) AS ?pss)
+           (SAMPLE(?coord) AS ?c) (SAMPLE(?img) AS ?i) (MIN(YEAR(?d)) AS ?y) (SAMPLE(?pssv) AS ?pss) (SAMPLE(?aiv) AS ?ai)
            (GROUP_CONCAT(DISTINCT ?archLabel; separator="|") AS ?a)
     WHERE {
       VALUES ?item { ${values} }
       ?item wdt:P625 ?coord ; wdt:P18 ?img ; wdt:P84 ?arch .
       OPTIONAL { ?item wdt:P571|wdt:P1619 ?d . }
       OPTIONAL { ?item wdt:P1838 ?pssv . }
+      OPTIONAL { ?item wdt:P5383 ?aiv . }
       SERVICE wikibase:label {
         bd:serviceParam wikibase:language "fr,en,mul,de,es,it,nl,pt,ca,pl,cs,sv,da,nb,fi,ja,zh,ko,ru" .
         ?item rdfs:label ?itemLabel .
@@ -109,7 +110,8 @@ async function main() {
       const year = r.y ? Number(r.y.value) : 0;
       const architects = r.a ? r.a.value.split('|').filter((s) => !/^Q\d+$/.test(s)).join(', ') : '';
       const pss = r.pss ? r.pss.value : '';
-      rows.push([qid, title, architects, year, round(pt[0]), round(pt[1]), file, pss]);
+      const ai = r.ai ? r.ai.value : '';
+      rows.push([qid, title, architects, year, round(pt[0]), round(pt[1]), file, pss, ai]);
     }
     console.log(`Détails : ${Math.min(i + BATCH, ids.length)}/${ids.length}`);
     await sleep(PAUSE_MS);
@@ -131,7 +133,7 @@ async function main() {
     v: 1,
     builtAt: new Date().toISOString().slice(0, 10),
     count: rows.length,
-    fields: ['qid', 'title', 'architect', 'year', 'lat', 'lng', 'image', 'pss'],
+    fields: ['qid', 'title', 'architect', 'year', 'lat', 'lng', 'image', 'pss', 'archinform'],
     rows,
   };
   await mkdir(dirname(OUT), { recursive: true });
