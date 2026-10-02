@@ -33,7 +33,18 @@ async function sparql(query) {
       },
       body: 'query=' + encodeURIComponent(query),
     });
-    if (res.ok) return (await res.json()).results.bindings;
+    if (res.ok) {
+      // Wikidata peut couper une réponse volumineuse en cours d'envoi tout en la déclarant réussie :
+      // une réponse illisible est traitée comme un incident passager, et l'on réessaie.
+      try {
+        return JSON.parse(await res.text()).results.bindings;
+      } catch (e) {
+        const wait = attempt * 15000;
+        console.warn(`Réponse Wikidata incomplète (${e.message}), nouvel essai ${attempt}/${MAX_RETRIES} dans ${wait / 1000}s`);
+        await sleep(wait);
+        continue;
+      }
+    }
     const wait = res.status === 429
       ? (Number(res.headers.get('retry-after')) || 30) * 1000
       : attempt * 5000;
