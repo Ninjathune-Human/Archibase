@@ -205,6 +205,7 @@
     overflow-y:auto; z-index:1000; display:none;
   }
   #searchResults.show{display:block;}
+  .result-note{padding:8px 14px; font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-dim); border-bottom:1px solid var(--grid);}
   .result-item{
     display:flex; gap:10px; padding:10px 14px; cursor:pointer;
     border-bottom:1px solid var(--grid);
@@ -1399,10 +1400,7 @@
       const status = p.visited ? 'visited' : 'notvisited';
       if(!statusFilter.has(status)) return false;
     }
-    if(searchQueryFilter){
-      const hay = [p.title, p.architect, p.city].filter(Boolean).join(' ').toLowerCase();
-      if(!hay.includes(searchQueryFilter)) return false;
-    }
+    if(searchQueryFilter && !matchesSearch(p)) return false;
     return true;
   }
 
@@ -2343,6 +2341,62 @@
     enterPlacingMode();
   };
 
+  // ---- Recherche tolérante : mots indépendants, mots vides ignorés, fautes de frappe, classement par pertinence ----
+  const SEARCH_STOP = new Set(['le','la','les','l','de','du','des','d','et','a','au','aux','en','un','une','the','of','and']);
+  const sNorm = (t)=> (t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  function searchTokens(str){
+    const words = sNorm(str).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(Boolean);
+    const kept = words.filter(w=> !SEARCH_STOP.has(w));
+    return kept.length ? kept : words; // une saisie faite seulement de mots vides reste cherchable
+  }
+  // Distance d'édition (substitution, insertion, suppression, inversion) bornée : abandon dès que « max » est dépassé
+  function withinDistance(a, b, max){
+    if(Math.abs(a.length - b.length) > max) return false;
+    let prev2 = null, prev = Array.from({length: b.length + 1}, (_, j)=> j);
+    for(let i = 1; i <= a.length; i++){
+      const cur = [i]; let rowMin = i;
+      for(let j = 1; j <= b.length; j++){
+        let v = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+        if(prev2 && i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]) v = Math.min(v, prev2[j-2] + 1);
+        cur[j] = v; if(v < rowMin) rowMin = v;
+      }
+      if(rowMin > max) return false;
+      prev2 = prev; prev = cur;
+    }
+    return prev[b.length] <= max;
+  }
+  // 3 = mot exact, 2 = début de mot (frappe en cours), 1 = faute de frappe tolérée, 0 = absent
+  function tokenScore(q, words){
+    let best = 0;
+    for(const w of words){
+      if(w === q) return 3;
+      if(q.length >= 2 && w.startsWith(q)){ best = 2; continue; }
+      if(best < 1 && q.length >= 4 && w[0] === q[0] && withinDistance(q, w, q.length >= 8 ? 2 : 1)) best = 1;
+    }
+    return best;
+  }
+  const SEARCH_FIELDS = [['title', 1.5], ['architect', 1.2], ['city', 1], ['address', 0.8]];
+  const searchFieldCache = new WeakMap();
+  function projectSearchFields(p){
+    const sig = SEARCH_FIELDS.map(([k])=> p[k] || '').join('|');
+    let c = searchFieldCache.get(p);
+    if(!c || c.sig !== sig){ c = {sig, fields: SEARCH_FIELDS.map(([k, w])=> [searchTokens(p[k] || ''), w])}; searchFieldCache.set(p, c); }
+    return c.fields;
+  }
+  function scoreProject(tokens, p){
+    let matched = 0, score = 0;
+    const fields = projectSearchFields(p);
+    for(const t of tokens){
+      let best = 0;
+      for(const [words, weight] of fields){ const v = tokenScore(t, words) * weight; if(v > best) best = v; }
+      if(best > 0){ matched++; score += best; }
+    }
+    return {matched, score};
+  }
+  // État de la recherche en cours : mots cherchés et nombre minimal de mots à trouver par fiche
+  let searchState = null;
+  function matchesSearch(p){ return !searchState || scoreProject(searchState.tokens, p).matched >= searchState.minMatched; }
+
   // ---- Search ----
   const searchInput = document.getElementById('search');
   const searchResults = document.getElementById('searchResults');
@@ -2353,17 +2407,28 @@
     q = q.trim().toLowerCase();
     searchClear.classList.toggle('show', searchInput.value.length > 0);
     searchQueryFilter = q;
+    // Tous les mots trouvés si possible ; sinon, repli sur les fiches qui en contiennent le plus (au moins la moitié)
+    const pool = projects.concat(publishedExtra()).filter(p=> !p.seed);
+    let hits = [], approximate = false;
+    if(q){
+      const tokens = searchTokens(q);
+      const scored = pool.map(p=> ({p, ...scoreProject(tokens, p)}));
+      const best = scored.reduce((m, x)=> Math.max(m, x.matched), 0);
+      const minMatched = best === tokens.length ? tokens.length : Math.max(1, Math.ceil(tokens.length / 2));
+      approximate = best < tokens.length;
+      searchState = {tokens, minMatched};
+      hits = scored.filter(x=> x.matched >= minMatched)
+        .sort((a, b)=> b.matched - a.matched || b.score - a.score || (a.p.title || '').localeCompare(b.p.title || '', 'fr'))
+        .map(x=> x.p);
+    }else{
+      searchState = null;
+    }
     updateFilterIndicator();
     writeHash();
     rebuildMarkers();
     scheduleReferenceRebuild();
     if(!q){ searchResults.classList.remove('show'); searchCount.textContent=''; return; }
-    const pool = projects.concat(publishedExtra());
-    const hits = pool.filter(p=>{
-      const hay = [p.title,p.architect,p.city,p.address,p.notes].join(' ').toLowerCase();
-      return hay.includes(q);
-    });
-    searchCount.textContent = hits.length ? `${hits.length} résultat(s)` : 'aucun résultat';
+    searchCount.textContent = hits.length ? `${approximate ? '≈ ' : ''}${hits.length} résultat(s)` : 'aucun résultat';
     if(!hits.length){
       searchResults.innerHTML = `<div class="result-item" style="cursor:default;">
         <div class="result-text"><div class="rt-title">Aucun projet ne correspond.</div>
@@ -2372,7 +2437,7 @@
       searchResults.classList.add('show');
       return;
     }
-    searchResults.innerHTML = hits.map(p=>`
+    searchResults.innerHTML = (approximate ? '<div class="result-note">Résultats approchants</div>' : '') + hits.map(p=>`
       <div class="result-item" data-id="${p.id}" tabindex="0" role="button" aria-label="${escapeHtml(p.title||'Sans titre')}">
         <img class="result-thumb" src="${escapeHtml(p.image||'')}" onerror="this.style.opacity=0" alt="" />
         <div class="result-text">
@@ -2409,7 +2474,18 @@
       searchInput.value = '';
       runSearch('');
     }
+    // Entrée valide la recherche : liste fermée, carte recadrée sur les résultats, clavier refermé (iPad, iPhone)
+    if(e.key === 'Enter' && searchInput.value.trim()){
+      e.preventDefault();
+      searchResults.classList.remove('show');
+      const pts = projects.concat(publishedExtra()).filter(p=> !p.seed && isProjectVisible(p)).map(p=> [p.lat, p.lng]);
+      if(pts.length === 1) map.setView(pts[0], Math.max(map.getZoom(), 15));
+      else if(pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.15), {maxZoom: 15});
+      searchInput.blur();
+    }
   });
+  // Revenir dans le champ rouvre la liste des résultats
+  searchInput.addEventListener('focus', ()=>{ if(searchInput.value.trim()) runSearch(searchInput.value); });
   document.addEventListener('click', (e)=>{
     if(!searchResults.contains(e.target) && e.target!==searchInput && e.target!==searchClear){
       searchResults.classList.remove('show');
@@ -3130,7 +3206,8 @@
   // Format compact : rows = [[qid, titre, architecte(s), année, lat, lng, fichier Commons], …]
   const REF_VISIBLE_KEY = 'wa-atlas-ref-visible';
   let refRows = null;
-  let refIndex = null;     // texte normalisé (titre + architecte) pour la recherche
+  let refIndex = null;
+  let refSearchTokens = null; // mots de la base de référence, préparés au premier usage de la recherche     // texte normalisé (titre + architecte) pour la recherche
   let refBuiltAt = '';
   let refLayer = null;
   let refVisible = false;
@@ -3177,11 +3254,12 @@
     }
     const renderer = L.canvas({padding: 0.5, tolerance: 8, pane: 'refPane'}); // tolérance : cible tactile élargie
     const owned = new Set(projects.flatMap(p=> [p.wikidataId, ...(p.altWikidataIds||[])]).filter(Boolean));
-    const q = norm(searchQueryFilter);
+    const refTok = searchState ? searchState.tokens : null;
+    if(refTok && !refSearchTokens) refSearchTokens = refRows.map(r=> searchTokens(r[1] + ' ' + r[2])); // calculé une seule fois
     const layers = [];
     refRows.forEach((r, i)=>{
       if(owned.has('Q' + r[0])) return;            // déjà dans ton relevé : pas de doublon
-      if(q && !refIndex[i].includes(q)) return;     // la recherche filtre aussi la référence
+      if(refTok && !refTok.every(t=> tokenScore(t, refSearchTokens[i]) > 0)) return; // même recherche tolérante
       const m = L.circleMarker([r[4], r[5]], {
         renderer, radius: 4, color: '#0A0A0A', weight: 1, fillColor: '#9A9A9A', fillOpacity: 0.95
       });
