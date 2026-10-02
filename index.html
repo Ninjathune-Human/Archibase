@@ -58,7 +58,7 @@
   /* Mouvement réduit : seuls les effets décoratifs de l'interface sont coupés.
      La carte et le regroupement des épingles gardent leurs animations, qui aident à se repérer. */
   @media (prefers-reduced-motion: reduce){
-    #sidePanel, #map, #topbar, #legend, .lg-chevron, .fs-chevron, #addBtn, .btn-primary, .locate-btn .ico, .ln-dot, .pv-link{
+    #sidePanel, #map, #topbar, #legend, .lg-chevron, .fs-chevron, #addBtn, .btn-primary, .locate-btn .ico, .ln-dot, .ext-link{
       transition:none !important; animation:none !important;
     }
     #addBtn:hover, .btn-primary:hover{transform:none !important;}
@@ -342,17 +342,19 @@
   .link-field{position:relative;}
   .link-field input{padding-right:104px; text-overflow:ellipsis;}
   /* Pastille « Ouvrir » : même langage que les boutons noirs de l'app, flèche à angle droit comme le logo */
-  #f-source-open{
-    display:none; position:absolute; top:50%; right:6px; transform:translateY(-50%);
-    height:32px; padding:0 10px 0 12px; gap:7px; align-items:center;
-    background:var(--ink); color:var(--paper); border-radius:var(--radius-xs); text-decoration:none;
+  /* Lien externe : un seul style dans toute l'app (pastille noire, capitales mono, flèche à angle droit) */
+  .ext-link{
+    position:relative; display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 10px 0 12px;
+    background:var(--ink); color:var(--paper); border-radius:var(--radius-xs); text-decoration:none; white-space:nowrap;
     font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
     transition:background var(--duration-fast) var(--ease-standard);
   }
-  #f-source-open svg{width:11px; height:11px; display:block; transition:transform var(--duration-fast) var(--ease-standard);}
-  #f-source-open:hover{background:var(--copper);}
-  #f-source-open:hover svg{transform:translate(1px,-1px);}
-  #f-source-open::before{content:''; position:absolute; inset:-6px 0;} /* zone tactile portée à 44 px de haut */
+  .ext-link svg{width:11px; height:11px; display:block; flex-shrink:0; transition:transform var(--duration-fast) var(--ease-standard);}
+  .ext-link:hover{background:var(--copper);}
+  .ext-link:hover svg{transform:translate(1px,-1px);}
+  .ext-link::before{content:''; position:absolute; inset:-6px 0;} /* zone tactile portée à 44 px de haut */
+  .ext-links{display:flex; flex-wrap:wrap; gap:8px; margin:-2px 0 14px;}
+  #f-source-open{display:none; position:absolute; top:50%; right:6px; transform:translateY(-50%);}
   .geocode-btn{
     margin-top:2px; min-height:44px; padding:0; font-size:12px; font-family:'IBM Plex Mono';
     background:none; color:#6E6E6E; border:none; cursor:pointer;
@@ -517,14 +519,11 @@
   .pv-block{margin-top:22px; padding-top:18px; border-top:1px solid var(--paper-dim);}
   .pv-label{font-family:'IBM Plex Mono', monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#6E6E6E; margin-bottom:8px;}
   .pv-address{font-size:14px; line-height:1.5;}
-  .pss-link{display:inline-flex; align-items:center; min-height:40px; margin:-6px 0 8px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
-  .pv-maps{display:inline-flex; align-items:center; min-height:44px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--copper); text-decoration:underline; text-underline-offset:3px;}
   .pv-notes{font-size:15px; line-height:1.65; margin:0; color:#2A2A2A;}
+  .pv-block .ext-link{margin:0 8px 8px 0;}
+  .pv-block .pv-address + .ext-link{margin-top:10px;}
   .pv-comment{margin:0 0 10px; padding:10px 14px; border-left:2px solid var(--copper); background:#F3F2EE; font-size:14px; line-height:1.5;}
   .pv-comment span{display:block; margin-top:4px; font-family:'IBM Plex Mono'; font-size:10px; color:#6E6E6E;}
-  .pv-link{display:inline-flex; align-items:center; gap:8px; min-height:40px; margin:0 8px 8px 0; padding:0 14px; border-radius:var(--radius-full); background:var(--ink); color:var(--paper); text-decoration:none; font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:0.04em; transition:background var(--duration-fast) var(--ease-standard);}
-  .pv-link svg{width:11px; height:11px;}
-  .pv-link:hover{background:var(--copper);}
   @media (max-width: 600px){
     #pubViewOverlay{align-items:flex-end;}
     #pubView{width:100%; max-height:92vh; border-radius:var(--radius-lg) var(--radius-lg) 0 0;}
@@ -935,7 +934,10 @@
           <button class="wd-btn" id="autofillBtn" type="button"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span>Compléter automatiquement</span></button>
         </div>
         <div class="geocode-status" id="autofillStatus" style="margin-bottom:12px;"></div>
-        <a id="f-pss" class="pss-link" target="_blank" rel="noopener" style="display:none;">Voir la fiche PSS-archi ↗</a>
+        <div class="ext-links" id="f-extlinks" style="display:none;">
+          <a id="f-pss" class="ext-link" target="_blank" rel="noopener" style="display:none;"><span>PSS-archi</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
+          <a id="f-ai" class="ext-link" target="_blank" rel="noopener" style="display:none;"><span>archINFORM</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
+        </div>
         <div class="field-row">
           <div class="field">
             <label>Architecte(s)</label>
@@ -984,7 +986,7 @@
             <label>Lien vers l'article (worldarchitecture.org)</label>
             <div class="link-field">
               <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
-              <a id="f-source-open" href="#" target="_blank" rel="noopener" aria-label="Ouvrir l'article dans un nouvel onglet" title="Ouvrir l'article"><span>Ouvrir</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5 H9.5 V8.5 M9.5 2.5 L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
+              <a id="f-source-open" class="ext-link" href="#" target="_blank" rel="noopener" aria-label="Ouvrir l'article dans un nouvel onglet" title="Ouvrir l'article"><span>Ouvrir</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5 H9.5 V8.5 M9.5 2.5 L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
             </div>
           </div>
           <div class="field">
@@ -1010,6 +1012,9 @@
       </div>
 
       <div id="m-pane-plans" style="display:none;">
+        <div class="ext-links" id="f-planlinks">
+          <a id="f-archweb" class="ext-link" target="_blank" rel="noopener"><span>Plans sur Archweb</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
+        </div>
         <div class="field">
           <label>Plans / documents</label>
           <div id="f-plans-list" class="link-list"></div>
@@ -2073,7 +2078,7 @@
     editingId = null;
     document.getElementById('shareBtn').style.display = 'none';
     pendingWikidataId = null;
-    document.getElementById('f-pss').style.display = 'none';
+    setExtLinks({pss: '', ai: ''}, document.getElementById('f-pss'), document.getElementById('f-ai'), document.getElementById('f-extlinks'));
     autofillQid = null;
     clearForm();
     document.getElementById('saveBtn').textContent = 'Enregistrer';
@@ -2115,36 +2120,47 @@
     currentShareId = p.id; writeHash();
     document.getElementById('shareBtn').style.display = '';
     document.getElementById('moveBtn').style.display = syncConfig ? '' : 'none';
-    showPssLink(p, document.getElementById('f-pss'));
+    showExtLinks(p, document.getElementById('f-pss'), document.getElementById('f-ai'), document.getElementById('f-extlinks'));
+    const aw = document.getElementById('f-archweb');
+    if(p.title){ aw.href = archwebUrl(p.title); aw.style.display = ''; } else aw.style.display = 'none';
     modalOverlay.classList.add('show');
   }
 
-  // ---- Lien vers la fiche PSS-archi : identifiant Wikidata P1838 (« PSS-archi ID ») ----
-  // Ordre de recherche : base de référence (aucun appel réseau), puis Wikidata en direct, une seule fois par bâtiment.
+  // ---- Liens externes : PSS-archi (Wikidata P1838), archINFORM (P5383), recherche de plans sur Archweb ----
+  // Identifiants lus dans la base de référence, sinon demandés à Wikidata une seule fois par bâtiment.
   // Rien n'est enregistré dans les fiches : pas de modification, donc pas de synchronisation déclenchée.
-  const pssCache = new Map(); // identifiant Wikidata → identifiant PSS ('' = aucun)
+  const extCache = new Map(); // identifiant Wikidata → {pss, ai} ('' = aucun)
   const pssUrl = (id)=> 'https://www.pss-archi.eu/immeubles/' + encodeURIComponent(id) + '.html';
-  async function pssIdFor(p){
+  const aiUrl = (id)=> 'https://fra.archinform.net/projekte/' + encodeURIComponent(id) + '.htm';
+  const archwebUrl = (title)=> 'https://www.archweb.com/fr/?s=' + encodeURIComponent(title);
+  async function extIdsFor(p){
     const qids = [p.wikidataId, ...(p.altWikidataIds || [])].filter(q=> /^Q\d+$/.test(q || ''));
     for(const q of qids){
-      if(!pssCache.has(q)){
+      if(!extCache.has(q)){
         try{
-          const rows = await sparqlQuery(`SELECT ?pss WHERE { wd:${q} wdt:P1838 ?pss . } LIMIT 1`, 15000);
-          pssCache.set(q, rows.length ? rows[0].pss.value : '');
+          const rows = await sparqlQuery(`SELECT ?pss ?ai WHERE { OPTIONAL { wd:${q} wdt:P1838 ?pss . } OPTIONAL { wd:${q} wdt:P5383 ?ai . } } LIMIT 1`, 15000);
+          const b = rows[0] || {};
+          extCache.set(q, {pss: b.pss ? b.pss.value : '', ai: b.ai ? b.ai.value : ''});
         }catch(e){ continue; } // réseau indisponible : on réessaiera à la prochaine ouverture
       }
-      if(pssCache.get(q)) return pssCache.get(q);
+      const v = extCache.get(q);
+      if(v.pss || v.ai) return v;
     }
-    return '';
+    return {pss: '', ai: ''};
   }
-  async function showPssLink(p, el){
-    if(!el) return;
-    el.style.display = 'none';
-    el.removeAttribute('href');
-    const id = await pssIdFor(p);
-    if(!id || currentShareId !== p.id) return; // fiche fermée ou changée entre-temps
-    el.href = pssUrl(id);
-    el.style.display = '';
+  // Affiche les pastilles disponibles ; le conteneur reste masqué s'il n'y en a aucune
+  function setExtLinks(ids, pssEl, aiEl, wrapEl){
+    [[pssEl, ids.pss, pssUrl], [aiEl, ids.ai, aiUrl]].forEach(([el, id, url])=>{
+      if(!el) return;
+      if(id){ el.href = url(id); el.style.display = ''; } else { el.removeAttribute('href'); el.style.display = 'none'; }
+    });
+    if(wrapEl) wrapEl.style.display = (ids.pss || ids.ai) ? '' : 'none';
+  }
+  async function showExtLinks(p, pssEl, aiEl, wrapEl){
+    setExtLinks({pss: '', ai: ''}, pssEl, aiEl, wrapEl);
+    const ids = await extIdsFor(p);
+    if(currentShareId !== p.id) return; // fiche fermée ou changée entre-temps
+    setExtLinks(ids, pssEl, aiEl, wrapEl);
   }
 
   // ---- Fiche éditoriale : consultation d'un projet publié ----
@@ -2160,11 +2176,12 @@
     const imgs = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
     const kicker = [p.typology, p.city].filter(Boolean).join(' · ');
     const byline = [p.architect, p.year].filter(Boolean).join(' — ');
-    const link = (href, text)=> `<a class="pv-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(text)}</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`;
+    const link = (href, text)=> `<a class="ext-link" href="${escapeHtml(href)}" target="_blank" rel="noopener"><span>${escapeHtml(text)}</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`;
     const links = [];
     if(p.source) links.push(link(p.source, /wikipedia\.org/.test(p.source) ? 'Wikipédia' : /wikidata\.org/.test(p.source) ? 'Wikidata' : 'Lire l\'article'));
     if(p.wikidataId && !/wikidata\.org/.test(p.source || '')) links.push(link('https://www.wikidata.org/wiki/' + p.wikidataId, 'Wikidata'));
-    links.push(`<a class="pv-link" id="pvPss" target="_blank" rel="noopener" style="display:none;"><span>PSS-archi</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`); // rempli si un identifiant PSS existe
+    links.push(`<a class="ext-link" id="pvPss" target="_blank" rel="noopener" style="display:none;"><span>PSS-archi</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`); // rempli si un identifiant existe
+    links.push(`<a class="ext-link" id="pvAi" target="_blank" rel="noopener" style="display:none;"><span>archINFORM</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>`);
     links.push(link('https://structurae.net/en/search?query=' + encodeURIComponent(p.title || ''), 'Structurae'));
     const body = document.getElementById('pubViewBody');
     body.innerHTML = `
@@ -2175,10 +2192,10 @@
         <h1 class="pv-title" id="pvTitle">${escapeHtml(p.title || 'Sans titre')}</h1>
         ${byline ? `<div class="pv-byline">${escapeHtml(byline)}</div>` : ''}
         ${p.visited ? '<div class="pv-visited">Visité</div>' : ''}
-        ${p.address ? `<div class="pv-block"><div class="pv-label">Adresse</div><div class="pv-address">${escapeHtml(p.address)}</div><a class="pv-maps" href="${escapeHtml(mapsUrl(p))}" target="_blank" rel="noopener">Itinéraire ↦</a></div>`
-                    : `<div class="pv-block"><a class="pv-maps" href="${escapeHtml(mapsUrl(p))}" target="_blank" rel="noopener">Itinéraire ↦</a></div>`}
+        ${p.address ? `<div class="pv-block"><div class="pv-label">Adresse</div><div class="pv-address">${escapeHtml(p.address)}</div>${link(mapsUrl(p), 'Itinéraire')}</div>`
+                    : `<div class="pv-block">${link(mapsUrl(p), 'Itinéraire')}</div>`}
         ${p.notes ? `<div class="pv-block"><p class="pv-notes">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p></div>` : ''}
-        ${(p.plans||[]).length ? `<div class="pv-block"><div class="pv-label">Plans et documents</div>${p.plans.map(pl=> link(pl.url, pl.label || 'Document')).join('')}</div>` : ''}
+        <div class="pv-block"><div class="pv-label">Plans et documents</div>${(p.plans||[]).map(pl=> link(pl.url, pl.label || 'Document')).join('')}${p.title ? link(archwebUrl(p.title), 'Plans sur Archweb') : ''}</div>
         ${(p.comments||[]).length ? `<div class="pv-block"><div class="pv-label">Commentaires</div>${p.comments.map(c=> `<blockquote class="pv-comment">${escapeHtml(c.text)}<span>${escapeHtml(c.date || '')}</span></blockquote>`).join('')}</div>` : ''}
         <div class="pv-block pv-links"><div class="pv-label">Pour aller plus loin</div>${links.join('')}</div>
       </div>`;
@@ -2193,7 +2210,7 @@
     body.scrollTop = 0;
     currentShareId = p.id; writeHash();
     pvOverlay.classList.add('show');
-    showPssLink(p, document.getElementById('pvPss'));
+    showExtLinks(p, document.getElementById('pvPss'), document.getElementById('pvAi'), null);
     document.getElementById('pubViewClose').focus();
   }
   function closePubView(){
@@ -3195,10 +3212,10 @@
     document.getElementById('modalEyebrow').textContent = 'Base de référence';
     document.getElementById('modalTitle').textContent = r[1];
     document.getElementById('saveBtn').textContent = 'Ajouter à mon relevé';
-    const pssEl = document.getElementById('f-pss'), qid = 'Q' + r[0];
-    const showPss = (id)=>{ if(id && pendingWikidataId === qid){ pssEl.href = pssUrl(id); pssEl.style.display = ''; } };
-    if(r.length > 7) showPss(r[7]);                 // base récente : identifiant déjà présent
-    else pssIdFor({wikidataId: qid}).then(showPss); // ancienne base : demandé à Wikidata
+    const qid = 'Q' + r[0];
+    const show = (ids)=>{ if(pendingWikidataId === qid) setExtLinks(ids, document.getElementById('f-pss'), document.getElementById('f-ai'), document.getElementById('f-extlinks')); };
+    if(r.length > 8) show({pss: r[7] || '', ai: r[8] || ''}); // base récente : identifiants déjà présents
+    else extIdsFor({wikidataId: qid}).then(show);              // base plus ancienne : demandés à Wikidata
   }
 
   function findReferenceByTitle(title){
@@ -3220,7 +3237,7 @@
       if(!data || !Array.isArray(data.rows)) throw new Error('format');
       refRows = data.rows;
       refIndex = refRows.map(r=> norm(r[1] + ' ' + r[2]));
-      refRows.forEach(r=>{ if(r.length > 7) pssCache.set('Q' + r[0], r[7] || ''); }); // base construite avec P1838
+      refRows.forEach(r=>{ if(r.length > 8) extCache.set('Q' + r[0], {pss: r[7] || '', ai: r[8] || ''}); }); // base construite avec P1838 et P5383
       refBuiltAt = data.builtAt || '';
       try{ refVisible = localStorage.getItem(REF_VISIBLE_KEY) === '1'; }catch(e){ refVisible = false; }
       btn.disabled = false;

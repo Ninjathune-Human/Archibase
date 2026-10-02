@@ -36,7 +36,7 @@ Carte interactive, façon Google Earth, pour localiser et cataloguer des projets
 **Partager**
 - Publication d'un état figé (tout le relevé ou une collection) consultable par tous, notes et commentaires exclus par défaut
 - Fiche éditoriale pour les visiteurs : grande photo et galerie, architecte et année, adresse avec itinéraire, plans, liens (Wikipédia, Wikidata, PSS-archi, Structurae)
-- Lien vers la fiche PSS-archi exacte pour les bâtiments liés à Wikidata (identifiant P1838)
+- Liens vers les fiches PSS-archi (P1838) et archINFORM (P5383) exactes pour les bâtiments liés à Wikidata ; recherche de plans sur Archweb dans l'onglet Plans
 - Liens partageables `#projet=…` et `#q=…`, bouton Partager (feuille de partage native sur iPhone et iPad)
 
 **Données**
