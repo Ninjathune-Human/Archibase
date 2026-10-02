@@ -4,6 +4,8 @@
 ### Ajouté
 - Lien « Voir la fiche PSS-archi » sur les fiches des bâtiments liés à Wikidata, vers la fiche PSS exacte, via l'identifiant Wikidata P1838 (« PSS-archi ID »). Identifiant lu dans la base de référence, sinon demandé à Wikidata une seule fois par bâtiment ; rien n'est extrait du site PSS.
 - Base de référence : 8e colonne `pss` (identifiant PSS-archi) ajoutée par le script de construction.
+- Base de référence : noms en repli dans d'autres langues (allemand, espagnol, italien, néerlandais, portugais, catalan, polonais, tchèque, langues nordiques, japonais, chinois, coréen, russe) quand ni le français ni l'anglais n'existent ; le français reste prioritaire.
+- Script de construction : nouvel essai automatique quand Wikidata renvoie une réponse tronquée.
 
 ## 1.12.0
 ### Changé
