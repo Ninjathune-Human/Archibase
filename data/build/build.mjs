@@ -81,7 +81,7 @@ async function details(ids) {
       OPTIONAL { ?item wdt:P571|wdt:P1619 ?d . }
       OPTIONAL { ?item wdt:P1838 ?pssv . }
       SERVICE wikibase:label {
-        bd:serviceParam wikibase:language "fr,en,mul" .
+        bd:serviceParam wikibase:language "fr,en,mul,de,es,it,nl,pt,ca,pl,cs,sv,da,nb,fi,ja,zh,ko,ru" .
         ?item rdfs:label ?itemLabel .
         ?arch rdfs:label ?archLabel .
       }
@@ -103,7 +103,7 @@ async function main() {
       if (!pt) continue;
       const qid = Number(r.item.value.split('/').pop().slice(1));
       const title = r.itemLabel ? r.itemLabel.value : '';
-      // Un libellé égal au QID signifie « pas de libellé » : inutile à afficher.
+      // Un libellé égal au QID signifie « aucun nom dans les langues demandées » : inutile à afficher.
       if (!title || /^Q\d+$/.test(title)) continue;
       const file = r.i ? decodeURIComponent(r.i.value.split('/Special:FilePath/').pop()) : '';
       const year = r.y ? Number(r.y.value) : 0;
