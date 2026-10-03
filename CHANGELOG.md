@@ -6,6 +6,10 @@
 - Base de référence : 8e colonne `pss` (identifiant PSS-archi) ajoutée par le script de construction.
 - Lien archINFORM (identifiant Wikidata P5383, 9e colonne `archinform` de la base de référence), à côté du lien PSS-archi.
 - Onglet Plans et section « Plans et documents » de la fiche publiée : « Plans sur Archweb », recherche des dessins du bâtiment sur Archweb.
+- Recherche tolérante : mots indépendants et dans n'importe quel ordre, mots vides ignorés, accents ignorés, fautes de frappe tolérées, début de mot accepté ; résultats classés par pertinence (nom, puis architecte, ville, adresse) ; repli « Résultats approchants » si aucune fiche ne contient tous les mots. Même logique pour la carte, la liste et la base de référence.
+- Recherche : Entrée valide (liste fermée, carte recadrée sur les résultats, clavier refermé) ; revenir dans le champ rouvre la liste.
+- Liens regroupés dans une seule rangée sous « Lien vers l'article » : lien principal nommé d'après sa destination (Wikipédia, Wikidata, WorldArchitecture, Article), PSS-archi, archINFORM.
+- Archweb : pastille inactive « Pas de plans sur Archweb » quand la recherche ne trouve rien (laissée active si Archweb ne répond pas).
 - Liens externes unifiés : une seule pastille (noire, capitales mono, flèche) pour Ouvrir, PSS-archi, archINFORM, Archweb, Itinéraire et les liens de la fiche publiée.
 - Base de référence : noms en repli dans d'autres langues (allemand, espagnol, italien, néerlandais, portugais, catalan, polonais, tchèque, langues nordiques, japonais, chinois, coréen, russe) quand ni le français ni l'anglais n'existent ; le français reste prioritaire.
 - Script de construction : nouvel essai automatique quand Wikidata renvoie une réponse tronquée.

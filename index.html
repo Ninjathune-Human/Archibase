@@ -341,7 +341,6 @@
   .field-row .field{flex:1;}
   /* Action secondaire : simple lien textuel, zone tactile conservée à 44 px de haut */
   .link-field{position:relative;}
-  .link-field input{padding-right:104px; text-overflow:ellipsis;}
   /* Pastille « Ouvrir » : même langage que les boutons noirs de l'app, flèche à angle droit comme le logo */
   /* Lien externe : un seul style dans toute l'app (pastille noire, capitales mono, flèche à angle droit) */
   .ext-link{
@@ -355,7 +354,9 @@
   .ext-link:hover svg{transform:translate(1px,-1px);}
   .ext-link::before{content:''; position:absolute; inset:-6px 0;} /* zone tactile portée à 44 px de haut */
   .ext-links{display:flex; flex-wrap:wrap; gap:8px; margin:-2px 0 14px;}
-  #f-source-open{display:none; position:absolute; top:50%; right:6px; transform:translateY(-50%);}
+  .field + .ext-links{margin-top:-6px;}
+  .ext-link.is-disabled{background:var(--paper-dim); color:#8E8E8A; cursor:default; pointer-events:none;}
+  .ext-link.is-disabled svg{display:none;}
   .geocode-btn{
     margin-top:2px; min-height:44px; padding:0; font-size:12px; font-family:'IBM Plex Mono';
     background:none; color:#6E6E6E; border:none; cursor:pointer;
@@ -559,8 +560,6 @@
   .clear-btn .ico{width:14px; height:14px;}
   .clear-btn:hover{color:var(--text-on-paper);}
   .clearable > input:not(:placeholder-shown):not(:disabled) ~ .clear-btn{display:flex;}
-  .link-field .clearable > input{padding-right:132px !important;}  /* place pour la pastille « Ouvrir » */
-  .link-field .clear-btn{right:100px;}
 
   /* Mention de chargement */
   #loadingNote{
@@ -936,6 +935,7 @@
         </div>
         <div class="geocode-status" id="autofillStatus" style="margin-bottom:12px;"></div>
         <div class="ext-links" id="f-extlinks" style="display:none;">
+          <a id="f-source-open" class="ext-link" target="_blank" rel="noopener" style="display:none;"><span id="f-source-label">Article</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
           <a id="f-pss" class="ext-link" target="_blank" rel="noopener" style="display:none;"><span>PSS-archi</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
           <a id="f-ai" class="ext-link" target="_blank" rel="noopener" style="display:none;"><span>archINFORM</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
         </div>
@@ -987,7 +987,6 @@
             <label>Lien vers l'article (worldarchitecture.org)</label>
             <div class="link-field">
               <input id="f-source" type="text" placeholder="https://worldarchitecture.org/architecture-news/…" />
-              <a id="f-source-open" class="ext-link" href="#" target="_blank" rel="noopener" aria-label="Ouvrir l'article dans un nouvel onglet" title="Ouvrir l'article"><span>Ouvrir</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5 H9.5 V8.5 M9.5 2.5 L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>
             </div>
           </div>
           <div class="field">
@@ -1784,11 +1783,32 @@
   const fSource = document.getElementById('f-source');
   const fSourceOpen = document.getElementById('f-source-open');
   // Icône « ouvrir » visible seulement quand le champ contient une adresse web valide
+  // Pastille du lien principal, nommée d'après sa destination
+  function sourceLabel(url){
+    const host = (url.match(/^https?:\/\/([^/]+)/i) || [,''])[1].toLowerCase();
+    if(/wikipedia\.org$/.test(host)) return 'Wikipédia';
+    if(/wikidata\.org$/.test(host)) return 'Wikidata';
+    if(/worldarchitecture\.org$/.test(host)) return 'WorldArchitecture';
+    return 'Article';
+  }
   function updateSourceLink(){
     const url = fSource.value.trim();
     const ok = /^https?:\/\/\S+$/i.test(url);
-    fSourceOpen.style.display = ok ? 'flex' : 'none';
-    if(ok) fSourceOpen.href = url; else fSourceOpen.removeAttribute('href');
+    fSourceOpen.style.display = ok ? '' : 'none';
+    if(ok){ fSourceOpen.href = url; document.getElementById('f-source-label').textContent = sourceLabel(url); }
+    else fSourceOpen.removeAttribute('href');
+    refreshExtRow();
+  }
+  // La rangée de liens n'apparaît que si au moins une pastille est visible
+  function refreshExtRow(){
+    const row = document.getElementById('f-extlinks');
+    if(row) row.style.display = [...row.querySelectorAll('.ext-link')].some(a=> a.style.display !== 'none') ? '' : 'none';
+  }
+  // Emplacement de la rangée : sous le lien principal en modification, sous « Compléter automatiquement » en création
+  function placeExtRow(editMode){
+    const row = document.getElementById('f-extlinks');
+    const anchor = editMode ? fSource.closest('.field') : document.getElementById('autofillStatus');
+    if(row && anchor && anchor.nextElementSibling !== row) anchor.after(row);
   }
   fSource.addEventListener('input', updateSourceLink);
   const fNotes = document.getElementById('f-notes');
@@ -2076,6 +2096,7 @@
     editingId = null;
     document.getElementById('shareBtn').style.display = 'none';
     pendingWikidataId = null;
+    placeExtRow(false);
     setExtLinks({pss: '', ai: ''}, document.getElementById('f-pss'), document.getElementById('f-ai'), document.getElementById('f-extlinks'));
     autofillQid = null;
     clearForm();
@@ -2118,9 +2139,9 @@
     currentShareId = p.id; writeHash();
     document.getElementById('shareBtn').style.display = '';
     document.getElementById('moveBtn').style.display = syncConfig ? '' : 'none';
+    placeExtRow(true);
     showExtLinks(p, document.getElementById('f-pss'), document.getElementById('f-ai'), document.getElementById('f-extlinks'));
-    const aw = document.getElementById('f-archweb');
-    if(p.title){ aw.href = archwebUrl(p.title); aw.style.display = ''; } else aw.style.display = 'none';
+    showArchweb(p, document.getElementById('f-archweb'));
     modalOverlay.classList.add('show');
   }
 
@@ -2152,13 +2173,49 @@
       if(!el) return;
       if(id){ el.href = url(id); el.style.display = ''; } else { el.removeAttribute('href'); el.style.display = 'none'; }
     });
-    if(wrapEl) wrapEl.style.display = (ids.pss || ids.ai) ? '' : 'none';
+    if(wrapEl) refreshExtRow();
   }
   async function showExtLinks(p, pssEl, aiEl, wrapEl){
     setExtLinks({pss: '', ai: ''}, pssEl, aiEl, wrapEl);
     const ids = await extIdsFor(p);
     if(currentShareId !== p.id) return; // fiche fermée ou changée entre-temps
     setExtLinks(ids, pssEl, aiEl, wrapEl);
+  }
+
+  // Archweb : on interroge sa recherche (interface standard de WordPress). Sans résultat, la pastille devient inactive.
+  // Si le site refuse la requête ou ne répond pas, on ne sait pas : la pastille reste active.
+  const archwebCache = new Map(); // nom normalisé → true / false
+  async function archwebHasResults(title){
+    const key = sNorm(title).trim();
+    if(archwebCache.has(key)) return archwebCache.get(key);
+    const controller = new AbortController();
+    const timer = setTimeout(()=> controller.abort(), 8000);
+    try{
+      const res = await fetch('https://www.archweb.com/wp-json/wp/v2/search?per_page=1&search=' + encodeURIComponent(title), {signal: controller.signal});
+      if(!res.ok) return null;
+      const data = await res.json();
+      if(!Array.isArray(data)) return null;
+      archwebCache.set(key, data.length > 0);
+      return data.length > 0;
+    }catch(e){ return null; }
+    finally{ clearTimeout(timer); }
+  }
+  function setArchweb(el, title, state){
+    if(!el) return;
+    if(!title){ el.style.display = 'none'; return; }
+    el.style.display = '';
+    const off = state === false;
+    el.classList.toggle('is-disabled', off);
+    el.querySelector('span').textContent = off ? 'Pas de plans sur Archweb' : 'Plans sur Archweb';
+    if(off){ el.removeAttribute('href'); el.setAttribute('aria-disabled', 'true'); el.title = 'Aucune fiche trouvée sur Archweb pour ce bâtiment'; }
+    else { el.href = archwebUrl(title); el.removeAttribute('aria-disabled'); el.title = ''; }
+  }
+  async function showArchweb(p, el){
+    setArchweb(el, p.title, null);
+    if(!p.title) return;
+    const state = await archwebHasResults(p.title);
+    if(currentShareId !== p.id) return; // fiche fermée ou changée entre-temps
+    setArchweb(el, p.title, state);
   }
 
   // ---- Fiche éditoriale : consultation d'un projet publié ----
@@ -2193,7 +2250,7 @@
         ${p.address ? `<div class="pv-block"><div class="pv-label">Adresse</div><div class="pv-address">${escapeHtml(p.address)}</div>${link(mapsUrl(p), 'Itinéraire')}</div>`
                     : `<div class="pv-block">${link(mapsUrl(p), 'Itinéraire')}</div>`}
         ${p.notes ? `<div class="pv-block"><p class="pv-notes">${escapeHtml(p.notes).replace(/\n/g, '<br>')}</p></div>` : ''}
-        <div class="pv-block"><div class="pv-label">Plans et documents</div>${(p.plans||[]).map(pl=> link(pl.url, pl.label || 'Document')).join('')}${p.title ? link(archwebUrl(p.title), 'Plans sur Archweb') : ''}</div>
+        <div class="pv-block"><div class="pv-label">Plans et documents</div>${(p.plans||[]).map(pl=> link(pl.url, pl.label || 'Document')).join('')}${p.title ? `<a class="ext-link" id="pvArchweb" target="_blank" rel="noopener"><span>Plans sur Archweb</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3.5 2.5H9.5V8.5M9.5 2.5L2.5 9.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square"/></svg></a>` : ''}</div>
         ${(p.comments||[]).length ? `<div class="pv-block"><div class="pv-label">Commentaires</div>${p.comments.map(c=> `<blockquote class="pv-comment">${escapeHtml(c.text)}<span>${escapeHtml(c.date || '')}</span></blockquote>`).join('')}</div>` : ''}
         <div class="pv-block pv-links"><div class="pv-label">Pour aller plus loin</div>${links.join('')}</div>
       </div>`;
@@ -2209,6 +2266,7 @@
     currentShareId = p.id; writeHash();
     pvOverlay.classList.add('show');
     showExtLinks(p, document.getElementById('pvPss'), document.getElementById('pvAi'), null);
+    showArchweb(p, document.getElementById('pvArchweb'));
     document.getElementById('pubViewClose').focus();
   }
   function closePubView(){
